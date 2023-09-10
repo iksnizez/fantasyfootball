@@ -1,0 +1,57 @@
+<h2>API endpoints </h2>
+
+<p>https://fantasy.espn.com/apis/v3/games/ffl/seasons/{season}/segments/0/leagues/{league_id} # for 2018 onward</p>
+<p>https://fantasy.espn.com/apis/v3/games/ffl/leagueHistory/{league_id}?seasonId={season} # for 2017 or earlier</p>
+
+<ul>
+   <li>mTeam</li>
+    <li>mMatchup</li>
+    <li>mRoster</li>
+    <li>mSettings</li>
+    <li>mBoxscore</li>
+    <li>mMatchupScore</li>
+    <li>kona_player_info</li>
+    <li>player_wl</li>
+    <li>mSchedule</li>
+    <li>mScoreboard</li>
+</ul>
+<span> -------------------------------------------------------------------------------------------------------------------------- </span>
+<br></br>
+<p>Example for a finished endpoint: https://fantasy.espn.com/apis/v3/games/ffl/seasons/2020/segments/0/leagues/899513?view=mDraftDetail</p>
+
+<ul>useful single views and json headers
+<li>mTeam: teams</li>
+<li>mBoxscore: schedule[matchups][home/away][teamid(num)/tiebreak(num)/pointsByScoringPeriod(dict{num/num)/totalpointsnum]</li>
+</ul>
+<span> -------------------------------------------------------------------------------------------------------------------------- </span>
+<br></br>
+<p>
+JSON HEADERS - a few examples
+
+'https://fantasy.espn.com/apis/v3/games/ffl/leagueHistory/{id}'
+params={'seasonId':'year'}
+
+    gameId
+    id
+    members
+    scoringPeriodId
+    seasonId
+    segmentId
+    settings
+    status
+    teams
+
+
+'https://fantasy.espn.com/apis/v3/games/ffl/leagueHistory/{id}'
+params={'seasonId':'year','view':'mMatchup'}
+
+    draftDetail
+    gameId
+    id
+    schedule
+    scoringPeriodId
+    seasonId
+    segmentId
+    status
+    teams
+</p>
