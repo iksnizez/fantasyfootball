@@ -1,3 +1,6 @@
+weekly:
+
+
 <h2>API endpoints </h2>
 
 <p>https://fantasy.espn.com/apis/v3/games/ffl/seasons/{season}/segments/0/leagues/{league_id} # for 2018 onward</p>
