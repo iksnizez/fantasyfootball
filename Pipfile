@@ -15,8 +15,11 @@ selenium = "*"
 pymysql = "*"
 openpyxl = "*"
 lxml = "*"
+cryptography = "*"
+ipykernel = "*"
 
 [dev-packages]
+ipykernel = "*"
 
 [requires]
 python_version = "3.9"

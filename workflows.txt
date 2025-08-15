@@ -1,10 +1,23 @@
 WORKFLOWS
 
-current season draft and end of season data, after draft:
+----------------WEEKLY:
+*before first game of the week, preferably Wed.
+1) run through 'inseasonRankProj_dataretrieval'
+
+
+*after MNF game ends
+1) run 'ktbEOW_dataretrieval'
+
+
+-----------------ONCE A SEASON:
+*current season draft and end of season data, after draft:
 1) save draft recap HTML page from espn website
 2) run leagueHistory_dataretrieval after activating new season
 3) run draftAndHistory_process with data from prev. steps
 this will populate: 
 	ktbdrafts(current season), 
 	ktbplayers, ktbgames, ktbteams (prev. season)
+
+
+
 
