@@ -12,3 +12,4 @@ data/
 .Ruserdata
 espnAPInotes.txt
 scripts/scratch/
+.env
