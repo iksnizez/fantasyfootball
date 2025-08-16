@@ -1,29 +1,33 @@
 # config.py
 from pathlib import Path
-import sys
+from dotenv import load_dotenv
+import os
 
 def get_project_root():
     """
     Returns the project root regardless of whether we're in a script,
     an interactive shell, or Jupyter Notebook.
     """
-    # Case 1: Running from a file on disk
-    if '__file__' in globals():
+    try:
+        # Running from a file on disk
         return Path(__file__).resolve().parent.parent
-
-    # Case 2: Interactive mode or Jupyter
-    if hasattr(sys, 'ps1') or sys.argv[0].endswith(('ipython', 'jupyter-notebook', 'jupyter-lab')):
-        return Path.cwd()
-
-    # Fallback: assume current working directory
-    return Path.cwd()
+    except NameError:
+        # Interactive mode (IPython, Jupyter, or plain Python shell)
+        return Path.cwd().parent if Path.cwd().name == "scripts" else Path.cwd()
 
 PROJECT_ROOT = get_project_root()
-DATA_DIR = PROJECT_ROOT / 'data'
-OUTPUT_DIR = PROJECT_ROOT / 'output'
 
-# Example usage
-if __name__ == '__main__':
-    print("Project root:", PROJECT_ROOT)
-    print("Data dir:", DATA_DIR)
-    print("Output dir:", OUTPUT_DIR)
+# Load environment variables without overwriting existing ones
+ENV_PATH = PROJECT_ROOT / '.env'
+load_dotenv(dotenv_path=ENV_PATH, override=False)
+
+# config data 
+DATA_DIR = PROJECT_ROOT / 'data'
+BROWSER_DIR = PROJECT_ROOT / 'browsers'
+ESPN_COOKIES_SWID = os.environ.get('ESPN_COOKIES_SWID')
+ESPN_COOKIES_S2 = os.environ.get('ESPN_COOKIES_S2')
+ESPN_HEADERS_NAME=os.environ.get('ESPN_HEADERS_NAME')
+ESPN_HEADERS=os.environ.get('ESPN_HEADERS')
+ESPN_LEAGUE_ID = os.environ.get('ESPN_LEAGUE_ID')
+PYMYSQL_NFL = os.environ.get('PYMYSQL_NFL')
+

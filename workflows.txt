@@ -2,7 +2,11 @@ WORKFLOWS
 
 ----------------WEEKLY:
 *before first game of the week, preferably Wed.
-1) run through 'inseasonRankProj_dataretrieval'
+1) 
+OLD
+run through 'inseasonRankProj_dataretrieval'
+******NEW
+run through 'getData_inseasonWeeklyRankProj'
 
 
 *after MNF game ends

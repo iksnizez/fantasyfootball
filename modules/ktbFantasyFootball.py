@@ -8,6 +8,8 @@ from selenium.webdriver.chrome.service import Service
 from bs4 import BeautifulSoup as bs
 from sqlalchemy import create_engine
 
+import helperModule as hf
+
 ###############################################################################
 ### AFTER DRAFT
 # get_draft_results() 
@@ -24,108 +26,24 @@ class ktb():
 
     def __init__(            
             self, 
-            browser_path,
+            league_id=None,
+            league_cookies=None,
+            league_headers=None,
+            db_connection_str = None,
             database_export = False, 
-            store_locally=True, 
-            config_path = '..\\..\\..\\Notes-General\\config.txt',
-            league_id = 245118,
-            league_cookies = {
-                "SWID":"{53904938-E572-4FD1-9F30-10A8A39DA775}",
-                "espn_s2":"AEBvpGk1SP6ibJZS7FOb%2Fj96G4TZWJrrUKPGNpWRagAthxCljUQkzY7J6sxAt%2Bezfk9fygiXuoY1aBehpYE0m4n7L%2BwbOJXPBOVp10dpJ3BXGwLy9RB5HI%2FNAOnL4czsqizbi%2FPdMexDbiLunx35kXtV4JWzlc3UqS%2Fkvqw6%2F58pzotJFoF%2FTK3mCgUyherJPFl26P5ItBVe2dGf6Y0%2B2WDjiDOLAh4xeXDggKVyoOxBoGZT4ODtKLk9agSEmSG9zwz73MGF6JerNaTg%2BcPKxRZex6f9caDHD%2BSxj2zcwh3q6w%3D%3D"
-            },
-            league_headers = {
-                'X-Fantasy-Filter': '{"players": {"limit": 1500, "sortPercOwned":{"sortAsc":false,"sortPriority":1}}}'
-            }
-    
+            store_locally=True
         ):
+        
+        self.league_id = league_id or hf.league_id
+        self.league_cookies = league_cookies or hf.league_cookies
+        self.league_headers = league_headers or hf.league_headers
+        self.pymysql_conn_str = db_connection_str
 
-        self.browser_path = browser_path
         self.database_export = database_export
         self.store_locally = store_locally
-        self.config_path = config_path
-        
-        self.league_id = league_id
-        self.cookies = league_cookies
-        self.headers = league_headers
-        self.map_team_ids_to_name =  {
-            1: 'John', 2: 'Gomer', 3: 'Pope', 4: "Jamie", 
-            5: "Geik", 6: "Bryan", 7: "Chaunce", 8: "Sam", 
-            9: "Chris", 10: "Murphy", 11: "Colin", 12: 'Ethan'
-        }
-        self.lineupSlotID = {
-            17: 'K', 0: 'QB', 20: 'bench', 15: 'DP', 6: 'TE', 
-            23: 'FLEX', 4: 'WR', 2: 'RB', 21: 'IR'
-        }
 
-        # regex replacement mapping used to make more joinable names
-        self.suffix_replace = {
-            "\\.":"", "`":"", "'":"",
-            " III$":"", " IV$":"", " II$":"", " iii$":"", " ii$":"", " iv$":"", " v$":"", " V$":"",
-            " jr$":"", " sr$":"", " jr.$":"", " sr.$":"", " Jr$":"", " Sr$":"", " Jr.$":"", " Sr.$":"", 
-            " JR$":"", " SR$":"", " JR.$":"", " SR.$":""
-        }
-
-        self.pymysql_conn_str = self.get_pymysql_conn_str(self.config_path)
-    
-    
-    #############
-    # general helper funcs
-    def get_pymysql_conn_str(self, config_path = None):
-        """
-        return pymysql connection string from local config file
-        """
-        if config_path == None:
-            config_path = self.config_path
-
-        with open(config_path, 'r') as f:
-            creds = f.read()
- 
-        creds = json.loads(creds)
-        pymysql_conn_str = creds['pymysql']['nfl']
-        del creds
-
-        return pymysql_conn_str
-
-    def export_database(self, dataframe, database_table, connection_string=None):
-
-        if connection_string == None:
-            connection_string = self.pymysql_conn_str
-
-        try:
-            dataframe.to_sql(
-                name=database_table, 
-                con=connection_string, 
-                if_exists='append', 
-                index=False
-            )
-            
-            print('successfully added data')
-            return 
-            
-        except:
-            message = 'database load failed'
-            print(message)
-            return 
-    
-    def open_browser(self, browser_path = None, retry_delay = 5, retry_attempts = 3):
-        
-        # an override browswer path can be provided but normally use the one provided whe nthe class is created 
-        if browser_path is None:
-            browser_path = self.browser_path
-        
-        service = Service(browser_path)
-        driver = webdriver.Firefox(service=service)
-
-        # start browser
-        return driver
-    
-    def apply_regex_replacements(self, value):
-        """
-        used to format names into their most joinable form
-        """
-        for pattern, replacement in self.suffix_replace.items():
-            value = re.sub(pattern, replacement, value, flags=re.IGNORECASE)
-        return value
+        self.map_team_ids_to_name = hf.map_team_ids_to_name
+        self.lineupSlotID = hf.lineupSlotID    
     
     #############
     # data collection and storage
@@ -133,8 +51,8 @@ class ktb():
             self, 
             season, 
             endpoints = ['mTeam','mBoxscore', 'mRoster','mSettings','kona_player_info','player_wl','mSchedule'],
-            base_url = 'https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons/{}/segments/0/leagues/{}?view=mLiveScoring&view=mMatchupScore&view=mRoster&view=mSettings&view=mStandings&view=mStatus&view=mTeam&view=modular&view=mNav',
-            json_output_path = '..\\data\\League History\\{s}-{f}_league_history.txt',
+            base_url = hf.espn_urls['league_history'],
+            json_output_path = hf.folderpath_data + '\\League History\\{s}-{f}_league_history.txt',
             save_json = False,
             process_json_to_df = True,
             database_table_teams = 'ktbteams' 
@@ -148,7 +66,7 @@ class ktb():
         prev_year = str(int(season) - 1)
         
         url = base_url.format(year, self.league_id)
-        response = requests.get(url, headers=self.headers, cookies=self.cookies)
+        response = requests.get(url, headers=self.league_headers, cookies=self.league_cookies)
 
         data = json.loads(response.content)
 
@@ -214,11 +132,11 @@ class ktb():
             teams['rankFinalKtb'] = None
 
             if self.database_export:
-                self.export_database(
-                dataframe = teams, 
-                database_table = database_table_teams, 
-                connection_string = self.pymysql_conn_str
-            )
+                hf.export_database(
+                    dataframe = teams, 
+                    database_table = database_table_teams, 
+                    connection_string = self.pymysql_conn_str
+                )
         
             ##### BOXSCORE END PT AND TABLE
 
@@ -227,8 +145,8 @@ class ktb():
     def get_player_info(
             self, 
             season, 
-            base_url = 'https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons/{}/segments/0/leagues/{}?scoringPeriodId=19&view=kona_player_info',
-            json_output_path = '..\\data\\League History\\{s}-{f}_player_history.txt',
+            base_url = hf.espn_urls['player_info'],
+            json_output_path = hf.folderpath_data + '\\League History\\{s}-{f}_player_history.txt',
             save_json = False
         ):
         """ 
@@ -237,7 +155,7 @@ class ktb():
         year = str(season)
 
         url = base_url.format(year, self.league_id)
-        response = requests.get(url, headers=self.headers, cookies=self.cookies)
+        response = requests.get(url, headers=self.league_headers, cookies=self.league_cookies)
 
         data = json.loads(response.content)
 
@@ -250,7 +168,7 @@ class ktb():
     def get_draft_results(
             self,
             draft_year, 
-            base_url = 'https://fantasy.espn.com/football/league/draftrecap?leagueId={lid}&seasonId={sid}',
+            base_url = hf.espn_urls['draft_results'],
             nTeams = 12,
             database_table = 'ktbdrafts',
             map_team_id = {
@@ -283,7 +201,7 @@ class ktb():
                                    'name', 'playerTeam', 'pos',
                                    'teamName'])
 
-        driver = self.open_browser(self.browser_path)
+        driver = hf.open_browser()
 
         driver.get(url)
         time.sleep(3)
@@ -332,7 +250,7 @@ class ktb():
         ]]
 
         if self.database_export:
-            self.export_database(
+            hf.export_database(
                 dataframe = drafts, 
                 database_table = database_table, 
                 connection_string = self.pymysql_conn_str
@@ -344,9 +262,9 @@ class ktb():
             self,
             season,
             week,
-            base_player_url = 'https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons/{}/segments/0/leagues/245118?view=kona_player_info&scoringPeriodId={}',
-            base_league_url = 'https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons/{}/segments/0/leagues/245118?view=mLiveScoring&view=mMatchupScore&view=mPositionalRatings&view=mTeam&view=modular&view=mNav&view=mMatchupScore&scoringPeriodId={}',
-            base_boxscore_url = 'https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons/{}/segments/0/leagues/245118?view=mBoxscore&scoringPeriodId={}',
+            base_player_url = hf.espn_urls['base_player_url'],
+            base_league_url = hf.espn_urls['base_league_url'],
+            base_boxscore_url = hf.espn_urls['base_boxscore_url'],
             save_json = False
         ):
         """
@@ -366,30 +284,30 @@ class ktb():
         week = str(week)
 
         url_player = base_player_url.format(season, week)
-        response = requests.request("GET", url_player, headers=self.headers, cookies=self.cookies)
+        response = requests.request("GET", url_player, headers=self.league_headers, cookies=self.league_cookies)
         print('weekly player data hit:', response)
         player_json = json.loads(response.content)         
 
         url_league = base_league_url.format(season,week)
-        response = requests.request("GET", url_league, headers=self.headers, cookies=self.cookies)
+        response = requests.request("GET", url_league, headers=self.league_headers, cookies=self.league_cookies)
         print('weekly league data hit:', response)
         league_json = json.loads(response.content)
 
         url_boxscore = base_boxscore_url.format(season, week)
-        response = requests.request("GET", url_boxscore, headers=self.headers, cookies=self.cookies)
+        response = requests.request("GET", url_boxscore, headers=self.league_headers, cookies=self.league_cookies)
         print('weekly boxscore data hit:', response)
         boxscore_json = json.loads(response.content)
         
 
 
         if save_json:
-            with open('..\Data\Season\{}week{}_player.txt'.format(season, week), 'w') as outfile:
+            with open(hf.DATA_DIR + '\\Season\\{}week{}_player.txt'.format(season, week), 'w') as outfile:
                 json.dump(player_json, outfile)
 
-            with open('..\Data\Season\{}week{}_league.txt'.format(season, week), 'w') as outfile:
+            with open(hf.DATA_DIR + '\\Season\\{}week{}_league.txt'.format(season, week), 'w') as outfile:
                 json.dump(league_json, outfile)
 
-            with open('..\Data\Season\{}week{}_boxscore.txt'.format(season, week), 'w') as outfile:
+            with open(hf.DATA_DIR + '\\Season\\{}week{}_boxscore.txt'.format(season, week), 'w') as outfile:
                 json.dump(boxscore_json, outfile)
 
         return [player_json, league_json, boxscore_json]
