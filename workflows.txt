@@ -1,26 +1,31 @@
 WORKFLOWS
 
 ----------------WEEKLY:
-*before first game of the week, preferably Wed.
+*** before first game of the week, preferably Wed.
 1) 
 OLD
-run through 'inseasonRankProj_dataretrieval'
+run through 'inseasonRankProj_dataretrieval.ipynb'
 ******NEW
-run through 'getData_inseasonWeeklyRankProj'
+run through 'getData_inseasonWeeklyRankProj.ipynb'
 
 
-*after MNF game ends
-1) run 'ktbEOW_dataretrieval'
+*** after MNF game ends
+1) 
+OLD 
+run 'ktbEOW_dataretrieval.ipynb'
+******NEW
+run 'getData_ktbEOW.ipynb'
 
 
 -----------------ONCE A SEASON:
-*current season draft and end of season data, after draft:
-1) save draft recap HTML page from espn website
-2) run leagueHistory_dataretrieval after activating new season
-3) run draftAndHistory_process with data from prev. steps
-this will populate: 
-	ktbdrafts(current season), 
-	ktbplayers, ktbgames, ktbteams (prev. season)
+*** AFTER SEASON ENDS
+1) run 'getData_SeasonHistory.ipynb' for league results and player stats, 
+       this can populate db: ktbplayers, ktbgames, ktbteams (prev. season)
+
+*** AFTER DRAFT:
+1) run 'getData_DraftResults.ipynb'
+     this can populate db: ktbdrafts(current season) 
+	
 
 
 

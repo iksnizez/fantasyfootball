@@ -1,4 +1,4 @@
-import requests, time
+import requests, time, re
 #import sqlalchemy as sal
 #from sqlalchemy import create_engine
 import pandas as pd
@@ -64,7 +64,9 @@ class scrapers():
             }
         }
         
-
+    # ====================
+    #       cbs
+    # ====================
     def cbs_projections(
         self,
         export = True,
@@ -74,7 +76,8 @@ class scrapers():
         tableHeader = "TableBase-headTr",
         headerClass = "Tablebase-tooltipInner",
         tableRow = "TableBase-bodyTr",
-        tableD = "TableBase-bodyTd"
+        tableD = "TableBase-bodyTd",
+        database_table = "projections"
     ):
         
         df_cbs_proj = pd.DataFrame(columns=hf.projection_columns)
@@ -174,7 +177,7 @@ class scrapers():
         df_cbs_proj.loc[:,'LongestFieldGoal'] = np.nan
 
         if export:
-            filepath = hf.DATA_DIR + "/projection/weekly/cbs_proj_{season}-{week}_{date}.csv".format(season=self.season, week=self.strWeek, date=self.today)
+            filepath = str(hf.DATA_DIR) + "/projection/weekly/cbs_proj_{season}-{week}_{date}.csv".format(season=self.season, week=self.strWeek, date=self.today)
             df_cbs_proj.to_csv(filepath, index=False)
 
         self.scraped_dfs['projections']['cbs'] = df_cbs_proj.copy()
@@ -189,7 +192,8 @@ class scrapers():
         parentDivClass = "rankings-table multi-authors hide-player-stats", # contains all expert rankings (3 tables)
         individualRankingDivClass = "experts-column triple",  # 3 of these for their 3 experts  
         authorNameAClass = "author-name",
-        playersDivClass = "player-wrapper"  # the divs of interest are in here but it also includes data that is not needed 
+        playersDivClass = "player-wrapper",  # the divs of interest are in here but it also includes data that is not needed 
+        database_table = 'rankings'
     ):
 
         df_cbs_ranking = pd.DataFrame(columns=hf.ranking_columns)
@@ -270,13 +274,13 @@ class scrapers():
                             continue
                 
             # creating temp dataframe that includes all 3 expert rankings for a grouping to add to the master df 
-            temp_df = pd.DataFrame(player_ranking_data, columns=self.ranking_columns)        
+            temp_df = pd.DataFrame(player_ranking_data, columns=hf.ranking_columns)        
             df_cbs_ranking = pd.concat([df_cbs_ranking, temp_df], axis = 0, ignore_index=True)
             
         if export:
-            filepath = hf.DATA_DIR + "/ranking/weekly/cbs_rank_{season}-{week}_{date}.csv".format(season=self.season, week=self.strWeek, date=self.today)
+            filepath = str(hf.DATA_DIR) + "/ranking/weekly/cbs_rank_{season}-{week}_{date}.csv".format(season=self.season, week=self.strWeek, date=self.today)
             df_cbs_ranking.to_csv(filepath, index=False)
-        
+
         self.scraped_dfs['rankings']['cbs'] = df_cbs_ranking.copy()
         return df_cbs_ranking.shape
 
@@ -426,6 +430,52 @@ class scrapers():
         
         return 
 
+    def cbs_adp(
+        self,
+        export = True,
+        cbs_adp_url = "https://www.cbssports.com/fantasy/football/draft/averages/",
+        database_table = 'adp'
+    ):
+        r = requests.get(cbs_adp_url)
+        soup = bs(r.text, features='lxml')
+
+        table = soup.find("table", class_="TableBase-table")
+        body = table.find("tbody")
+
+        adps = []
+        for tr in body.find_all("tr"):
+            temp = []
+            
+            data = tr.find_all("td")
+            
+            playerId = data[1].find("a")["href"].split("/")[3]
+            shortName =  data[1].find("span", class_="CellPlayerName--short").text.split("\n")[0].replace(".", "")
+            fullName =  data[1].find("span", class_="CellPlayerName--long").text.split("\n")[0].replace(".", "")
+            pos = data[1].find("span", class_="CellPlayerName-position").text.strip()
+            team =  data[1].find("span", class_="CellPlayerName-team").text.strip()
+            
+            adp = data[3].text.strip()
+            
+            highLow = data[4].text.split("/")
+            high = highLow[0].strip()
+            low = highLow[1]
+            
+            temp = ["cbs", self.today, playerId, fullName, shortName, pos, team, adp, high, low]
+            adps.append(temp)
+            
+        df_cbs_adp = pd.DataFrame(adps, columns = hf.adp_columns)
+        if export:
+            filepath = str(hf.DATA_DIR) + "/projection/offseason/cbs_adp_{season}-{week}_{date}.csv".format(season=self.season, week=self.strWeek, date=self.today)
+            df_cbs_adp.to_csv(filepath, index=False)
+
+        self.scraped_dfs['adps']['cbs'] = df_cbs_adp.copy()
+
+        return
+
+
+    # ====================
+    #       ffp
+    # ====================
     def ffp_ecr_rankings(
         self,
         export = True,
@@ -433,7 +483,8 @@ class scrapers():
             r"https://www.fantasypros.com/nfl/rankings/half-point-ppr-{}",
             r"https://www.fantasypros.com/nfl/rankings/{}"
         ],
-        waitTime = 15
+        waitTime = 15,
+        database_table = 'ranking'
     ):
     
         driver = hf.open_browser()
@@ -570,7 +621,7 @@ class scrapers():
         driver.close()
 
         if export:
-            filepath = hf.DATA_DIR + "/ranking/weekly/fpEcr_rank_{season}-{week}_{date}.csv".format(season=self.season, week=self.strWeek, date=self.today)
+            filepath = str(hf.DATA_DIR) + "/ranking/weekly/fpEcr_rank_{season}-{week}_{date}.csv".format(season=self.season, week=self.strWeek, date=self.today)
             df_ecr_ranks.to_csv(filepath, index=False)
 
         self.scraped_dfs['rankings']['ffp_ecr'] = df_ecr_ranks.copy()
@@ -579,7 +630,8 @@ class scrapers():
     def ffp_rankings(
         self,
         export = True,
-        url_fp_rankings = r"https://www.fantasypros.com/nfl/fantasy-football-rankings/{pos}.php"
+        url_fp_rankings = r"https://www.fantasypros.com/nfl/fantasy-football-rankings/{pos}.php",
+        database_table = 'ranking'
     ):
         
         fp_url_positions = {
@@ -660,16 +712,93 @@ class scrapers():
         df_fp_ranking = pd.DataFrame(all_ranks, columns=hf.ranking_columns).replace("-", np.nan).replace("N/A", np.nan)
         
         if export:
-            filepath = hf.DATA_DIR + "/ranking/weekly/fp_rank_{season}-{week}_{date}.csv".format(season=self.season, week=self.strWeek, date=self.today)
+            filepath = str(hf.DATA_DIR) + "/ranking/weekly/fp_rank_{season}-{week}_{date}.csv".format(season=self.season, week=self.strWeek, date=self.today)
             df_fp_ranking.to_csv(filepath, index=False)
-        
+
         self.scraped_dfs['rankings']['ffp'] = df_fp_ranking.copy()
         return df_fp_ranking.shape
     
+    def ffp_adp(
+        self,
+        export = True,
+        fp_adp_url = r"https://www.fantasypros.com/nfl/adp/half-point-ppr-overall.php",
+        database_table = 'adp',
+        date_override = None
+    ):
+        today = date_override or self.today
+
+        r = requests.get(fp_adp_url)
+        soup = bs(r.text, features='lxml')
+
+        table = soup.find_all("table")[0].find("tbody")
+
+        adps = []
+        for tr in table.find_all("tr"):
+            
+            temp = []
+            data = tr.find_all("td")
+            
+            fullName = data[1].find("a", class_="player-name").text.replace(".", "")
+            playerId = data[1].find("a", class_="fp-player-link")
+            
+            for c in data[1].find_all(class_=True):
+                classes = c['class']
+                if len(classes) > 1:
+                    for i in classes:
+                        if "id" in i:
+                            playerId = i.split("id-")[1]
+                            
+            
+                
+            pos = re.search(pattern = r"\D*", string=data[2].text)[0]
+            
+            if pos == 'DST':
+                team = fullName
+            else:
+                try:
+                    team = data[1].find("small").text
+                except:
+                    team = "FA"
+            
+            
+            ###
+            # adding an entry for each sites adp. they are their own records
+            yahoo = data[3].text
+            temp = ["yahoo", today, playerId, fullName, np.nan, pos, team, yahoo, np.nan, np.nan]
+            adps.append(temp)
+            
+            fantrax = data[4].text
+            temp = ["fantrax", today, playerId, fullName, np.nan, pos, team, fantrax, np.nan, np.nan]
+            adps.append(temp)
+            
+            ffc = data[5].text
+            temp = ["ffc", today, playerId, fullName, np.nan, pos, team, ffc, np.nan, np.nan]
+            adps.append(temp)
+            
+            sleeper = data[6].text
+            temp = ["sleeper", today, playerId, fullName, np.nan, pos, team, sleeper, np.nan, np.nan]
+            adps.append(temp)
+            
+            #avg = data[7].text
+            
+            
+        df_fp_adp = pd.DataFrame(adps, columns=hf.adp_columns)
+        
+        
+        if export:
+            filepath = str(hf.DATA_DIR) + "/ranking/projection/fp_adp_{season}-{week}_{date}.csv".format(season=self.season, week=self.strWeek, date=self.today)
+            df_fp_adp.to_csv(filepath, index=False)
+
+        self.scraped_dfs['adps']['ffp'] = df_fp_adp.copy()
+        return df_fp_adp.shape
+    # ====================
+    #       espn
+    # ====================
     def espn_projections(
         self,
         export = True,
-        url_espn_proj = "https://fantasy.espn.com/football/players/projections?leagueFormatId=3"
+        url_espn_proj = "https://fantasy.espn.com/football/players/projections?leagueFormatId=3",
+        database_table = 'projection'
     ):
         
         driver = hf.open_browser()
@@ -792,9 +921,9 @@ class scrapers():
         df_espn_proj = pd.concat([df_espn_proj, temp_proj]).replace("--", 0)
 
         if export:
-            filepath = hf.DATA_DIR + "/projection/weekly/espn_proj_{season}-{week}_{date}.csv".format(season=self.season, week=self.strWeek, date=self.today)
+            filepath = str(hf.DATA_DIR) + "/projection/weekly/espn_proj_{season}-{week}_{date}.csv".format(season=self.season, week=self.strWeek, date=self.today)
             df_espn_proj.to_csv(filepath, index=False)
-        
+
         self.scraped_dfs['projections']['espn'] = df_espn_proj.copy()
         return df_espn_proj.shape      
 
@@ -816,7 +945,8 @@ class scrapers():
         "DST":"https://www.espn.com/fantasy/football/story/_/page/FFWeeklyPlayerRank24DST-41030584/nfl-fantasy-football-rankings-2024-dst-defense",
         #"IDP":"https://www.espn.com/fantasy/football/story/_/page/23ffweekrankIDP/nfl-fantasy-football-rankings-2024-idp-defense-dl-lb-db",
         "IDP":"https://www.espn.com/fantasy/football/story/_/page/FFWeeklyPlayerRank24IDP-41031094/nfl-fantasy-football-rankings-2024-idp-defense-dl-lb-db"
-        }
+        },
+        database_table = 'ranking'
     ):
         # final dataframe structure to hosue all the rankings
         df_espn_ranking = pd.DataFrame(columns=hf.ranking_columns)
@@ -956,12 +1086,78 @@ class scrapers():
         driver.close() 
         
         if export:
-            filepath = hf.DATA_DIR + "/ranking/weekly/espn_rank_{season}-{week}_{date}.csv".format(season=self.season, week=self.strWeek, date=self.today)
+            filepath = str(hf.DATA_DIR) + "/ranking/weekly/espn_rank_{season}-{week}_{date}.csv".format(season=self.season, week=self.strWeek, date=self.today)
             df_espn_ranking.to_csv(filepath, index=False)
-        
+
         self.scraped_dfs['rankings']['espn'] = df_espn_ranking.copy()
         return df_espn_ranking.shape
 
+    def espn_adp(
+        self,
+        export = True,
+        espn_adp_url = r"https://fantasy.espn.com/football/livedraftresults",
+        database_table = 'adp',
+        date_override = None
+    ):
+        today = date_override or self.today
+        driver = hf.open_browser()
+        driver.get(espn_adp_url) 
+        # sleep to let the html load
+        time.sleep(10)
+
+        html = driver.execute_script("return document.body.innerHTML")
+        soup = bs(html, features='lxml')
+
+        table = soup.find("tbody", class_="Table__TBODY")
+
+        adps = []
+
+        for n in range(10):
+            
+            for tr in table.find_all("tr"):
+                temp = []
+                data = tr.find_all("td")
+
+                fullName = data[1].find("a", class_="AnchorLink link clr-link pointer").text.replace(".", "")
+                pos = data[1].find("span", class_="playerinfo__playerpos").text.replace("/","")
+                try:
+                    team = data[1].find("span", class_="playerinfo__playerteam").text
+                except:
+                    team = "FA"
+                adp = data[2].text
+                
+                if pos == "DST":
+                    playerId = ""
+                else:
+                    playerId  = data[1].find('img', src=True)['src'].split("/")[10].split(".")[0]
+
+                temp = ["espn", today, playerId, fullName, np.nan, pos, team, adp, np.nan, np.nan]
+                adps.append(temp)
+            
+            # looping over the pages for ADP
+            button = driver.find_element(By.XPATH, "//button[@class='Button Button--default Button--icon-noLabel Pagination__Button Pagination__Button--next']")
+            button.click()
+            time.sleep(10)
+            
+            # grabs the entire pages html for the new page and sets it for the next scrap iteration
+            html = driver.execute_script("return document.body.innerHTML")
+            soup = bs(html)
+            
+            table = soup.find("tbody", class_="Table__TBODY")
+
+        driver.close()
+        df_espn_adp = pd.DataFrame(adps, columns=hf.adp_columns)
+        
+        if export:
+            filepath = str(hf.DATA_DIR) + "/ranking/projection/espn_adp_{season}-{week}_{date}.csv".format(season=self.season, week=self.strWeek, date=self.today)
+            df_espn_adp.to_csv(filepath, index=False)
+
+        self.scraped_dfs['adps']['espn'] = df_espn_adp.copy()
+        return df_espn_adp.shape
+    
+    # ====================
+    #       nfl
+    # ====================
     def nfl_projections(
         self,
         export = True,
@@ -970,7 +1166,8 @@ class scrapers():
         "https://fantasy.nfl.com/research/projections?offset={offset}&position=0&statCategory=projectedStats&statSeason={season}&statType=weekProjectedStats&statWeek={week}",
         "https://fantasy.nfl.com/research/projections?offset={offset}&position=7&statCategory=projectedStats&statSeason={season}&statType=weekProjectedStats&statWeek={week}",
         "https://fantasy.nfl.com/research/projections?offset={offset}&position=8&statCategory=projectedStats&statSeason={season}&statType=weekProjectedStats&statWeek={week}",
-        ]  
+        ],
+        database_table = 'projection'
     ):
         df_nfl_proj = pd.DataFrame(columns=hf.projection_columns)
         player_data = []
@@ -1144,7 +1341,7 @@ class scrapers():
         df_nfl_proj = pd.DataFrame(player_data, columns=hf.projection_columns).replace("-",0)
         
         if export:
-            filepath = hf.DATA_DIR + "/projection/weekly/nfl_proj_{season}-{week}_{date}.csv".format(season=self.season, week=self.strWeek, date=self.today)
+            filepath = str(hf.DATA_DIR) + "/projection/weekly/nfl_proj_{season}-{week}_{date}.csv".format(season=self.season, week=self.strWeek, date=self.today)
             df_nfl_proj.to_csv(filepath, index=False)
 
         self.scraped_dfs['projections']['nfl'] = df_nfl_proj.copy()
@@ -1160,7 +1357,8 @@ class scrapers():
             "TE":"https://fantasy.nfl.com/research/rankings?leagueId=0&position=TE&sort=1&statType=weekStats&week={week}",
             "K":"https://fantasy.nfl.com/research/rankings?leagueId=0&position=K&sort=1&statType=weekStats&week={week}",
             "DST":"https://fantasy.nfl.com/research/rankings?leagueId=0&position=DEF&sort=1&statType=weekStats&week={week}"
-        }
+        },
+        database_table = 'ranking'
     ):
         df_nfl_ranking = pd.DataFrame(columns=hf.ranking_columns)
 
@@ -1210,12 +1408,15 @@ class scrapers():
             df_nfl_ranking = pd.concat([df_nfl_ranking, temp_df], axis = 0, ignore_index=True)
             
         if export:
-            filepath = hf.DATA_DIR + "/ranking/weekly/nfl_rank_{season}-{week}_{date}.csv".format(season=self.season, week=self.strWeek, date=self.today)
+            filepath = str(hf.DATA_DIR) + "/ranking/weekly/nfl_rank_{season}-{week}_{date}.csv".format(season=self.season, week=self.strWeek, date=self.today)
             df_nfl_ranking.to_csv(filepath, index=False)
-        
+
         self.scraped_dfs['rankings']['nfl'] = df_nfl_ranking.copy()
         return df_nfl_ranking.shape
 
+    # ====================
+    #       bp
+    # ====================
     def bp_lines(
         self,
         export = True,
@@ -1223,7 +1424,8 @@ class scrapers():
             r'https://www.bettingpros.com/nfl/odds/spread',#/?season={season}&week={week}',
             r'https://www.bettingpros.com/nfl/odds/moneyline',#/?season={season}&week={week}",
             r'https://www.bettingpros.com/nfl/odds/total'#/?season={season}&week={week}"
-        ]
+        ],
+        database_table = 'betting'
     ):
 
         driver = hf.open_browser()
@@ -1360,8 +1562,14 @@ class scrapers():
         driver.close()
 
         if export:
-            filepath = hf.DATA_DIR + "/betting/lines{season}-{week}_{date}.csv".format(season=self.season, week=self.strWeek, date=self.today)
-            df_lines.to_csv(filepath, index=False)  
+            filepath = str(hf.DATA_DIR) + "/betting/lines{season}-{week}_{date}.csv".format(season=self.season, week=self.strWeek, date=self.today)
+            df_lines.to_csv(filepath, index=False)
+            
+            hf.export_database(
+                dataframe = df_lines, 
+                database_table = database_table, 
+                connection_string = None
+            ) 
 
         self.scraped_dfs['lines']['bp'] = df_lines.copy()
         return df_lines.shape

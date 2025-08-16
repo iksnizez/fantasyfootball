@@ -6,14 +6,14 @@ from sqlalchemy import create_engine
 from config import ESPN_COOKIES_SWID, ESPN_COOKIES_S2, PYMYSQL_NFL, BROWSER_DIR, ESPN_LEAGUE_ID, ESPN_HEADERS_NAME, ESPN_HEADERS, DATA_DIR
 
 
-folderpath_data = str(DATA_DIR)        
+folderpath_data = DATA_DIR        
 league_id = ESPN_LEAGUE_ID
 league_cookies = {
-    "SWID":str(ESPN_COOKIES_SWID),
-    "espn_s2":str(ESPN_COOKIES_S2)
-},
+    "SWID":ESPN_COOKIES_SWID,
+    "espn_s2":ESPN_COOKIES_S2
+}
 league_headers = {
-    str(ESPN_HEADERS_NAME): str(ESPN_HEADERS)
+    ESPN_HEADERS_NAME: ESPN_HEADERS
 }
 map_team_ids_to_name =  {
     1: 'John', 2: 'Gomer', 3: 'Pope', 4: "Jamie", 
@@ -46,9 +46,12 @@ projection_columns = ["outlet","date", "season", "week", "playerId", "name", "sh
  'ExtraPointsMade','ExtraPointsAttempted',
  'Interceptions','Safeties','Sacks','Tackles','DefensiveFumblesRecovered','ForcedFumbles','DefensiveTouchdowns', 
  'ReturnTouchdowns','PointsAllowed','PointsAllowedPerGame','NetPassingYardsAllowed','RushingYardsAllowed', 
- 'TotalYardsAllowed', 'YardsAgainstPerGame', 'twoPt','FantasyPoints','FantasyPointsPerGame']
+ 'TotalYardsAllowed', 'YardsAgainstPerGame', 'twoPt','FantasyPoints','FantasyPointsPerGame'
+ ]
 
 ranking_columns = ["outlet", "date", "season", "week", "group", "expert", "rank","name","playerId","team","pos", "high", "low"]
+
+adp_columns = ['outlet', 'date', 'playerId', 'name', 'shortName' , 'pos', 'team', 'adp', 'high', 'low']
 
 team_map = {
     "Jacksonville Jaguars":"JAX","Los Angeles Rams":"LA","Philadelphia Eagles":"PHI","Minnesota Vikings":"MIN",
@@ -58,7 +61,8 @@ team_map = {
     "Buffalo Bills":"BUF","Tennessee Titans":"TEN","Atlanta Falcons":"ATL","Cincinnati Bengals":"CIN",
     "Kansas City Chiefs":"KC","Washington Redskins":"WAS","Dallas Cowboys":"DAL","Tampa Bay Buccaneers":"TB",
     "Green Bay Packers":"GB","New York Giants":"NYG","San Francisco 49ers":"SF","Cleveland Browns":"CLE",
-    "Oakland Raiders":"OAK","Indianapolis Colts":"IND","Miami Dolphins":"MIA","New York Jets":"NYJ"}
+    "Oakland Raiders":"OAK","Indianapolis Colts":"IND","Miami Dolphins":"MIA","New York Jets":"NYJ"
+}
 team_mascot_map = {
     "Jaguars":"JAX","Rams":"LA","Eagles":"PHI","Vikings":"MIN",
     "Texans":"HOU","Chargers":"LAC","Ravens":"BAL","Patriots":"NE",
@@ -69,7 +73,82 @@ team_mascot_map = {
     "Packers":"GB","Giants":"NYG","49ers":"SF","Browns":"CLE",
     "Raiders":"OAK","Colts":"IND","Dolphins":"MIA","Jets":"NYJ"
 }
-
+team_map_abbrevs = {
+    'ATL': 'ATL',
+    'BUF': 'BUF',
+    'CHI': 'CHI',
+    'CIN': 'CIN',
+    'CLE': 'CLE',
+    'DAL': 'DAL',
+    'DEN': 'DEN',
+    'DET': 'DET',
+    'GB': 'GB',
+    'TEN': 'TEN',
+    'IND': 'IND',
+    'KC': 'KC',
+    'LV': 'LV',
+    'LAR': 'LA',
+    'MIA': 'MIA',
+    'MIN': 'MIN',
+    'NE': 'NE',
+    'NO': 'NO',
+    'NYG': 'NYG',
+    'NYJ': 'NYJ',
+    'PHI': 'PHI',
+    'ARI': 'ARI',
+    'PIT': 'PIT',
+    'LAC': 'LAC',
+    'SF': 'SF',
+    'SEA': 'SEA',
+    'TB': 'TB',
+    'WSH': 'WAS',
+    'CAR': 'CAR',
+    'JAX': 'JAX',
+    'BAL': 'BAL',
+    'HOU': 'HOU',
+    'FA': 'FA',
+    'STL': 'SL',
+    'SD': 'SD',
+    'OAK': 'OAK'
+ }
+team_map_ids = {
+    'ATL': '3800',
+    'BUF': '0610',
+    'CHI': '0810',
+    'CIN': '0920',
+    'CLE': '1050',
+    'DAL': '1200',
+    'DEN': '1400',
+    'DET': '1540',
+    'GB': '1800',
+    'TEN': '2100',
+    'IND': '2200',
+    'KC': '2310',
+    'LV': '2520',
+    'LAR': '2510',
+    'MIA': '2700',
+    'MIN': '3000',
+    'NE': '3200',
+    'NO': '3300',
+    'NYG': '3410',
+    'NYJ': '3430',
+    'PHI': '3700',
+    'ARI': '3800',
+    'PIT': '3900',
+    'LAC': '4400',
+    'SF': '4500',
+    'SEA': '4600',
+    'TB': '4900',
+    'WSH': '5110',
+    'CAR': '0750',
+    'JAX': '2250',
+    'BAL': '0325',
+    'HOU': '2120',
+    'FA': '0',
+    'STL': '0',
+    'SD': '0',
+    'OAK': '0'
+ }
 #############
 # general helper funcs
 def export_database(dataframe, database_table, connection_string=None):
@@ -100,19 +179,21 @@ def export_database(dataframe, database_table, connection_string=None):
         print(ex)
         return 
 
-def query_database(query, connection_string=None):
+def query_database(query, connection_string=None, params=None):
     
     try:
         if connection_string == None:
             df = pd.read_sql_query(
                 sql = query,
-                con=PYMYSQL_NFL
+                con=PYMYSQL_NFL,
+                params=params
             )
 
         else:
             df = pd.read_sql_query(
                 sql = query,
-                con=connection_string
+                con=connection_string,
+                params=params
             )
         
         print('query successfully')
@@ -128,7 +209,7 @@ def open_browser(browser_filepath = None, retry_delay = 5, retry_attempts = 3):
     
     # an override browswer path can be provided but normally use the one provided whe nthe class is created 
     if browser_filepath is None:
-        browser_filepath = BROWSER_DIR + '/' + "geckodriver.exe"
+        browser_filepath = BROWSER_DIR / "geckodriver.exe"
     
     service = Service(browser_filepath)
     driver = webdriver.Firefox(service=service)

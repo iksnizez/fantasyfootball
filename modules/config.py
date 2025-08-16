@@ -10,7 +10,7 @@ def get_project_root():
     """
     try:
         # Running from a file on disk
-        return Path(__file__).resolve().parent.parent
+        return Path(__file__).resolve().parent.parent   # the number of parents should be how many levels below the root the config is saved
     except NameError:
         # Interactive mode (IPython, Jupyter, or plain Python shell)
         return Path.cwd().parent if Path.cwd().name == "scripts" else Path.cwd()

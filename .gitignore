@@ -3,6 +3,8 @@ geckodriver.log
 Untitled.ipynb
 .ipynb_checkpoints/
 */.ipynb_checkpoints/
+__pycache__/
+*/__pycache__/
 archive/
 */archive/
 data/
