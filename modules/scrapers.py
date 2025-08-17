@@ -6,6 +6,7 @@ pd.set_option('display.max_columns', 500)
 import numpy as np
 from bs4 import BeautifulSoup as bs
 from datetime import date
+from io import StringIO
 
 #from selenium import webdriver
 #from selenium.webdriver.chrome.service import Service
@@ -35,6 +36,98 @@ class scrapers():
         else:
             self.strWeek = self.week
 
+        self.scraping_urls = {
+            'cbs':{
+                'offseason':{
+                    'projections':"https://www.cbssports.com/fantasy/football/stats/{pos}/{year}/restofseason/projections/ppr/",
+                    'rankings':"https://www.cbssports.com/fantasy/football/rankings/ppr/{pos}/",
+                    'adp':"https://www.cbssports.com/fantasy/football/draft/averages/"
+                },
+                'inseason':{
+                    'projections':"https://www.cbssports.com/fantasy/football/stats/{pos}/{season}/{week}/projections/ppr/",
+                    'rankings':"https://www.cbssports.com/fantasy/football/rankings/ppr/{pos}/"
+                }
+            },
+            'ffp':{
+                'offseason':{
+                    'projections':None,
+                    'rankings':"https://www.fantasypros.com/nfl/rankings/half-point-ppr-cheatsheets.php",
+                    'adp':"https://www.fantasypros.com/nfl/adp/half-point-ppr-overall.php"
+                },
+                'inseason':{
+                    'projections':None,
+                    'rankings':[
+                        r"https://www.fantasypros.com/nfl/rankings/half-point-ppr-{}",
+                        r"https://www.fantasypros.com/nfl/rankings/{}"
+                    ]
+                }
+            },
+            
+            'espn':{
+                'offseason':{
+                    'projections':"https://fantasy.espn.com/football/players/projections",
+                    'rankings':{
+                        "QB":"https://www.espn.com/fantasy/football/story/_/page/FFPreseasonRank25QBPPR/nfl-fantasy-football-draft-rankings-2025-qb-quarterback",
+                        "RB":"https://www.espn.com/fantasy/football/story/_/page/FFPreseasonRank25RBPPR/nfl-fantasy-football-draft-rankings-2025-rb-running-back-ppr",
+                        "WR":"https://www.espn.com/fantasy/football/story/_/page/FFPreseasonRank25WRPPR/nfl-fantasy-football-draft-rankings-2025-wr-wide-receiver-ppr",
+                        "TE":"https://www.espn.com/fantasy/football/story/_/page/FFPreseasonRank25TEPPR/nfl-fantasy-football-draft-rankings-2025-te-tight-end-ppr",
+                        "K":"https://www.espn.com/fantasy/football/story/_/page/FFPreseasonRank25KPPR/nfl-fantasy-football-draft-rankings-2025-kicker-k",
+                        "DST":"https://www.espn.com/fantasy/football/story/_/page/FFPreseasonRank25DSTPPR/nfl-fantasy-football-draft-rankings-2025-dst-defense",
+                        "IDP":"https://www.espn.com/fantasy/football/story/_/page/FFPreseasonRank25IDP/2025-fantasy-football-rankings-idp-defense-defensive-line-linebacker-defensive-back",
+                    },
+                    'adp':"https://fantasy.espn.com/football/livedraftresults"
+                },
+                'inseason':{
+                    'projections':"https://fantasy.espn.com/football/players/projections?leagueFormatId=3",
+                    'rankings':{
+                        "QB":"",
+                        "RB":"",
+                        "WR":"",
+                        "TE":"",
+                        "K":"",
+                        "DST":"",
+                        "IDP":""
+                    }
+                }
+            },
+            'nfl':{
+                'offseason':{
+                    'projections':[
+                        "https://fantasy.nfl.com/research/projections?position=O&sort=projectedPts&statCategory=projectedStats&statSeason={season}&offset={offset}&statType=seasonProjectedStats&ajax=1",
+                        "https://fantasy.nfl.com/research/projections?position=7&sort=projectedPts&statCategory=projectedStats&statSeason={season}&offset={offset}&statType=seasonProjectedStats&ajax=1",
+                        "https://fantasy.nfl.com/research/projections?position=8&sort=projectedPts&statCategory=projectedStats&statSeason={season}&offset={offset}&statType=seasonProjectedStats&ajax=1"
+                        ],
+                    'rankings':{
+                        "QB":"https://fantasy.nfl.com/research/rankings?leagueId=0&position=QB&sort=1&statSeason={season}&statType=seasonStats",
+                        "RB":"https://fantasy.nfl.com/research/rankings?leagueId=0&position=RB&sort=1&statSeason={season}&statType=seasonStats",
+                        "WR":"https://fantasy.nfl.com/research/rankings?leagueId=0&position=WR&sort=1&statSeason={season}&statType=seasonStats",
+                        "TE":"https://fantasy.nfl.com/research/rankings?leagueId=0&position=TE&sort=1&statSeason={season}&statType=seasonStats",
+                        "K":"https://fantasy.nfl.com/research/rankings?leagueId=0&position=K&sort=1&statSeason={season}&statType=seasonStats",
+                        "DEF":"https://fantasy.nfl.com/research/rankings?leagueId=0&position=DEF&sort=1&statSeason={season}&statType=seasonStats",
+                        "DL":"https://fantasy.nfl.com/research/rankings?leagueId=0&position=DL&sort=1&statSeason={season}&statType=seasonStats",
+                        "LB":"https://fantasy.nfl.com/research/rankings?leagueId=0&position=LB&sort=1&statSeason={season}&statType=seasonStats",
+                        "DB":"https://fantasy.nfl.com/research/rankings?leagueId=0&position=DB&sort=1&statSeason={season}&statType=seasonStats"
+                    },
+                    'adp':'https://fantasy.nfl.com/research/rankings?offset={offset}&sort=average&statType=draftStats&ajax=1'
+                },
+                'inseason':{
+                    'projections':[
+                        "https://fantasy.nfl.com/research/projections?offset={offset}&position=0&statCategory=projectedStats&statSeason={season}&statType=weekProjectedStats&statWeek={week}",
+                        "https://fantasy.nfl.com/research/projections?offset={offset}&position=7&statCategory=projectedStats&statSeason={season}&statType=weekProjectedStats&statWeek={week}",
+                        "https://fantasy.nfl.com/research/projections?offset={offset}&position=8&statCategory=projectedStats&statSeason={season}&statType=weekProjectedStats&statWeek={week}",
+                        ],
+                    'rankings':{
+                        "QB":"https://fantasy.nfl.com/research/rankings?leagueId=0&position=QB&sort=1&statType=weekStats&week={week}",     
+                        "RB":"https://fantasy.nfl.com/research/rankings?leagueId=0&position=RB&sort=1&statType=weekStats&week={week}",
+                        "WR":"https://fantasy.nfl.com/research/rankings?leagueId=0&position=WR&sort=1&statType=weekStats&week={week}",
+                        "TE":"https://fantasy.nfl.com/research/rankings?leagueId=0&position=TE&sort=1&statType=weekStats&week={week}",
+                        "K":"https://fantasy.nfl.com/research/rankings?leagueId=0&position=K&sort=1&statType=weekStats&week={week}",
+                        "DST":"https://fantasy.nfl.com/research/rankings?leagueId=0&position=DEF&sort=1&statType=weekStats&week={week}"
+                    }
+                }
+            },
+        }
+
         self.scraped_dfs = {
             'projections':{
                 'cbs':None,
@@ -63,121 +156,223 @@ class scrapers():
                 'records':None
             }
         }
-        
+
+ 
     # ====================
     #       cbs
     # ====================
     def cbs_projections(
         self,
+        inseason=False,
         export = True,
-        url_projections = "https://www.cbssports.com/fantasy/football/stats/{pos}/{season}/{week}/projections/ppr/",
         positions = ["QB", "RB", "WR", "TE", "K", "DST"],
         tableClass = "TableBase-table",
         tableHeader = "TableBase-headTr",
         headerClass = "Tablebase-tooltipInner",
         tableRow = "TableBase-bodyTr",
-        tableD = "TableBase-bodyTd",
-        database_table = "projections"
+        tableD = "TableBase-bodyTd"
     ):
         
         df_cbs_proj = pd.DataFrame(columns=hf.projection_columns)
 
-        # loop through each position to retrieve HTML and convert to df
-        for p in range(len(positions)):
-            
-            time.sleep(3)
-            #updating URL for each position
-            url_formatted = url_projections.format(pos=positions[p], season=self.season, week=self.week)
+        if inseason:
+            url_projections = self.scraping_urls['cbs']['inseason']['projections']
 
-            # retreiving HTML and converting it to soup
-            r = requests.get(url_formatted)
-            soup = bs(r.text)
-
-            # accessing table with the data
-            table = soup.find("table", class_= tableClass)
-
-            
-            # accounting for the difference in DEF headers
-            if positions[p] == "DST":
-                cols = ["pos", "team","name"]
-            else:
-                cols = ["playerId", "name", "shortName", "pos", "team"]
-            
-            ### grabbing column names from the thead for the position. These will be used to create the temp. pos dataframe
-            #retrieving column names from the HTML
-            for i in table.find_all("div", class_=headerClass):
-                cols.append(''.join(filter(str.isalnum, i.text)))
+            # loop through each position to retrieve HTML and convert to df
+            for p in range(len(positions)):
                 
-            # accessing the data in the body
-            body = table.find("tbody")
-            # looping through rows
-            data = []
-            for tr in body.find_all("tr", class_=tableRow):
-                # accounting for DST and populating pos as DST since it is not provided
+                time.sleep(3)
+                #updating URL for each position
+                url_formatted = url_projections.format(pos=positions[p], season=self.season, week=self.week)
+
+                # retreiving HTML and converting it to soup
+                r = requests.get(url_formatted)
+                soup = bs(r.text, features='lxml')
+
+                # accessing table with the data
+                table = soup.find("table", class_= tableClass)
+
+                
+                # accounting for the difference in DEF headers
                 if positions[p] == "DST":
-                    player_data = ["DST"]
+                    cols = ["pos", "team","name"]
                 else:
-                    player_data = []
+                    cols = ["playerId", "name", "shortName", "pos", "team"]
                 
-                for td in tr.find_all("td", class_=tableD):
+                ### grabbing column names from the thead for the position. These will be used to create the temp. pos dataframe
+                #retrieving column names from the HTML
+                for i in table.find_all("div", class_=headerClass):
+                    cols.append(''.join(filter(str.isalnum, i.text)))
                     
+                # accessing the data in the body
+                body = table.find("tbody")
+                # looping through rows
+                data = []
+                for tr in body.find_all("tr", class_=tableRow):
+                    # accounting for DST and populating pos as DST since it is not provided
                     if positions[p] == "DST":
-                    # pulling team name 
-                        span = td.find_all("span",class_="CellLogoNameLockup")
-                        if span:   
-                            for s in span:
-                                player_data.append(s.find("a")["href"].split("/")[3])
-                                player_data.append(str.strip(td.text))
-                        
-                        # non-span <Td>, 
-                        else:
-                            player_data.append(str.strip(td.text))
-                            
-                    # processing table body for all pos except DST
+                        player_data = ["DST"]
                     else:
-                        #the player name, id, pos, and team are all in spans. 
-                        #the spans are not present in the stat <td>'s
-                        span_short = td.find_all("span",class_="CellPlayerName--short")
-                        span_long = td.find_all("span",class_="CellPlayerName--long")
-
-                        # if the <td> has a span, the player info will be extracted
-                        if span_long:
-
-                            for s in span_long:
-                                # player Id from the href url
-                                player_data.append(s.find("a")["href"].split("/")[3])
-                                # player full name
-                                player_data.append(str.strip(s.find("a").text).replace(".", ""))
-
-                            for s in span_short:
-                                # player short name
-                                player_data.append(s.find("a").text.replace(".", ""))
-                                #player position
-                                player_data.append(str.strip(s.find("span", class_="CellPlayerName-position").text))
-                                #player nfl team
-                                player_data.append(str.strip(s.find("span", class_="CellPlayerName-team").text).replace("JAC", "JAX").replace("WAS", "WSH"))
+                        player_data = []
                     
-                        # non-span <Td>
+                    for td in tr.find_all("td", class_=tableD):
+                        
+                        if positions[p] == "DST":
+                        # pulling team name 
+                            span = td.find_all("span",class_="CellLogoNameLockup")
+                            if span:   
+                                for s in span:
+                                    player_data.append(s.find("a")["href"].split("/")[3])
+                                    player_data.append(str.strip(td.text))
+                            
+                            # non-span <Td>, 
+                            else:
+                                player_data.append(str.strip(td.text))
+                                
+                        # processing table body for all pos except DST
                         else:
-                            player_data.append(str.strip(td.text))
-                
-                # creates the list of players, each player is a list with stats
-                data.append(player_data)
-            
-            # converts list of list to data frame with the applicable columns pulled earlier
-            pos_df = pd.DataFrame(data, columns=cols)
-            
-            # concats all of the position data to the master df
-            df_cbs_proj = pd.concat([df_cbs_proj, pos_df], axis=0, ignore_index=True)
+                            #the player name, id, pos, and team are all in spans. 
+                            #the spans are not present in the stat <td>'s
+                            span_short = td.find_all("span",class_="CellPlayerName--short")
+                            span_long = td.find_all("span",class_="CellPlayerName--long")
 
-        df_cbs_proj.loc[:,'outlet'] = "cbs"
-        df_cbs_proj.loc[:,'date'] = self.today
-        df_cbs_proj.loc[:,'season'] = self.season
-        df_cbs_proj.loc[:,'week'] = self.week
-        df_cbs_proj.loc[:,'LongestFieldGoal'] = np.nan
+                            # if the <td> has a span, the player info will be extracted
+                            if span_long:
+
+                                for s in span_long:
+                                    # player Id from the href url
+                                    player_data.append(s.find("a")["href"].split("/")[3])
+                                    # player full name
+                                    player_data.append(str.strip(s.find("a").text).replace(".", ""))
+
+                                for s in span_short:
+                                    # player short name
+                                    player_data.append(s.find("a").text.replace(".", ""))
+                                    #player position
+                                    player_data.append(str.strip(s.find("span", class_="CellPlayerName-position").text))
+                                    #player nfl team
+                                    player_data.append(str.strip(s.find("span", class_="CellPlayerName-team").text).replace("JAC", "JAX").replace("WAS", "WSH"))
+                        
+                            # non-span <Td>
+                            else:
+                                player_data.append(str.strip(td.text))
+                    
+                    # creates the list of players, each player is a list with stats
+                    data.append(player_data)
+                
+                # converts list of list to data frame with the applicable columns pulled earlier
+                pos_df = pd.DataFrame(data, columns=cols)
+                
+                # concats all of the position data to the master df
+                df_cbs_proj = pd.concat([df_cbs_proj, pos_df], axis=0, ignore_index=True)
+
+            df_cbs_proj.loc[:,'outlet'] = "cbs"
+            df_cbs_proj.loc[:,'date'] = self.today
+            df_cbs_proj.loc[:,'season'] = self.season
+            df_cbs_proj.loc[:,'week'] = self.week
+            df_cbs_proj.loc[:,'LongestFieldGoal'] = np.nan
+
+        # offseason
+        else:
+            url_projections = self.scraping_urls['cbs']['offseason']['projections']
+
+            # loop through each position to retrieve HTML and convert to df
+            for p in range(len(positions)):
+                
+                time.sleep(3)
+                #updating URL for each position
+                url_formatted = url_projections.format(pos=positions[p], year=self.season)
+
+                # retreiving HTML and converting it to soup
+                r = requests.get(url_formatted)
+                soup = bs(r.text, features='lxml')
+
+                # accessing table with the data
+                table = soup.find("table", class_= tableClass)
+
+                
+                # accounting for the difference in DEF headers
+                if positions[p] == "DST":
+                    cols = ["pos", "team","name"]
+                else:
+                    cols = ["playerId", "name", "shortName", "pos", "team"]
+                
+                ### grabbing column names from the thead for the position. These will be used to create the temp. pos dataframe
+                #retrieving column names from the HTML
+                for i in table.find_all("div", class_=headerClass):
+                    cols.append(''.join(filter(str.isalnum, i.text)))
+                    
+                # accessing the data in the body
+                body = table.find("tbody")
+                # looping through rows
+                data = []
+                for tr in body.find_all("tr", class_=tableRow):
+                    # accounting for DST and populating pos as DST since it is not provided
+                    if positions[p] == "DST":
+                        player_data = ["DST"]
+                    else:
+                        player_data = []
+                    
+                    for td in tr.find_all("td", class_=tableD):
+                        
+                        if positions[p] == "DST":
+                            
+                            span = td.find_all("span",class_="CellLogoNameLockup")
+                            
+                            if span:
+                                
+                                for s in span:
+                                    player_data.append(s.find("a")["href"].split("/")[3])
+                                    player_data.append(str.strip(td.text))
+                            
+                            # non-span <Td>
+                            else:
+                                player_data.append(str.strip(td.text))
+                                
+                        # processing table body for all pos except DST
+                        else:
+                            #the player name, id, pos, and team are all in spans. the spans are not present in the stat <td>'s
+                            span_short = td.find_all("span",class_="CellPlayerName--short")
+                            span_long = td.find_all("span",class_="CellPlayerName--long")
+
+                            # if the <td> has a span, the player info will be extracted
+                            if span_long:
+
+                                for s in span_long:
+                                    # player Id from the href url
+                                    player_data.append(s.find("a")["href"].split("/")[3])
+                                    # player full name
+                                    player_data.append(str.strip(s.find("a").text).replace(".", ""))
+
+                                for s in span_short:
+                                    # player short name
+                                    player_data.append(s.find("a").text.replace(".", ""))
+                                    #player position
+                                    player_data.append(str.strip(s.find("span", class_="CellPlayerName-position").text))
+                                    #player nfl team
+                                    player_data.append(str.strip(s.find("span", class_="CellPlayerName-team").text))
+                        
+                            # non-span <Td>
+                            else:
+                                player_data.append(str.strip(td.text))
+                    
+                    # creates the list of players, each player is a list with stats
+                    data.append(player_data)
+                
+                # converts list of list to data frame with the applicable columns pulled earlier
+                pos_df = pd.DataFrame(data, columns=cols)
+                
+                # concats all of the position data to the master df
+                df_cbs_proj = pd.concat([df_cbs_proj, pos_df], axis=0, ignore_index=True)
+
+            df_cbs_proj.loc[:,'outlet'] = "cbs"
+            df_cbs_proj.loc[:,'date'] = self.today
+            df_cbs_proj.loc[:,'season'] = self.season
+            df_cbs_proj.loc[:,'week'] = self.week
+
 
         if export:
-            filepath = str(hf.DATA_DIR) + "/projection/weekly/cbs_proj_{season}-{week}_{date}.csv".format(season=self.season, week=self.strWeek, date=self.today)
+            filepath = str(hf.DATA_DIR) + "/projection/cbs_proj_{season}-{week}_{date}.csv".format(season=self.season, week=self.strWeek, date=self.today)
             df_cbs_proj.to_csv(filepath, index=False)
 
         self.scraped_dfs['projections']['cbs'] = df_cbs_proj.copy()
@@ -185,98 +380,161 @@ class scrapers():
     
     def cbs_rankings(
         self,
+        inseason=False,
         export = True,
-        url_rankings = "https://www.cbssports.com/fantasy/football/rankings/ppr/{pos}/",#/weekly/"
         positions = ["QB", "RB", "WR", "TE", "K", "DST", "FLEX"],
         # key class names that will be targeted
         parentDivClass = "rankings-table multi-authors hide-player-stats", # contains all expert rankings (3 tables)
         individualRankingDivClass = "experts-column triple",  # 3 of these for their 3 experts  
         authorNameAClass = "author-name",
-        playersDivClass = "player-wrapper",  # the divs of interest are in here but it also includes data that is not needed 
-        database_table = 'rankings'
+        playersDivClass = "player-wrapper"  # the divs of interest are in here but it also includes data that is not needed 
     ):
 
         df_cbs_ranking = pd.DataFrame(columns=hf.ranking_columns)
 
-        for pos in positions:
-            time.sleep(3)    
-            # retreiving HTML and converting it to soup
-            url_formatted = url_rankings.format(pos=pos)
-            r = requests.get(url_formatted)
-            soup = bs(r.text)
+        if inseason:
 
-            # finding the tables with rankings
-            rankingTables = soup.find_all("div", class_=individualRankingDivClass)
+            url_rankings = self.scraping_urls['cbs']['inseason']['rankings']
 
-            # looping through the 3 expert ranks that are in their own tables
-            player_ranking_data = []
-            if pos == "FLEX":
-                for rt in rankingTables:
-                    #extracting expert name
-                    expert = rt.find("a", class_=authorNameAClass).span.text
+            for pos in positions:
+                time.sleep(3)    
+                # retreiving HTML and converting it to soup
+                url_formatted = url_rankings.format(pos=pos)
+                r = requests.get(url_formatted)
+                soup = bs(r.text)
 
-                    #looping through the divs that contain all the player level ranking data
-                    ranks = rt.find("div", class_=playersDivClass)
-                    for p in ranks:
-                        temp = ["cbs", self.today, self.season, self.week, pos, expert]
-                        try:
-                            temp.append(str.strip(p.find("div", class_="rank").text))  #expert rank, number  .text
-                            temp.append(str.strip(p.find("span", class_="player-name").text).replace(".", ""))  #cbs shortName  .text
-                            temp.append(str.strip(p.find("a")["href"].split("/")[4])) # cbs playerId is in the url
-                            temp.append(str.strip(p.find("span", class_="team position").text.split()[0])) # contains the player nfl team 
-                            temp.append(str.strip(p.find("span", class_="team position").text.split()[1])) # contains the player nfl position
-                            temp.append(np.nan)
-                            temp.append(np.nan)
-                            player_ranking_data.append(temp)
-                        except:
-                            continue
+                # finding the tables with rankings
+                rankingTables = soup.find_all("div", class_=individualRankingDivClass)
+
+                # looping through the 3 expert ranks that are in their own tables
+                player_ranking_data = []
+                if pos == "FLEX":
+                    for rt in rankingTables:
+                        #extracting expert name
+                        expert = rt.find("a", class_=authorNameAClass).span.text
+
+                        #looping through the divs that contain all the player level ranking data
+                        ranks = rt.find("div", class_=playersDivClass)
+                        for p in ranks:
+                            temp = ["cbs", self.today, self.season, self.week, pos, expert]
+                            try:
+                                temp.append(str.strip(p.find("div", class_="rank").text))  #expert rank, number  .text
+                                temp.append(str.strip(p.find("span", class_="player-name").text).replace(".", ""))  #cbs shortName  .text
+                                temp.append(str.strip(p.find("a")["href"].split("/")[4])) # cbs playerId is in the url
+                                temp.append(str.strip(p.find("span", class_="team position").text.split()[0])) # contains the player nfl team 
+                                temp.append(str.strip(p.find("span", class_="team position").text.split()[1])) # contains the player nfl position
+                                temp.append(np.nan)
+                                temp.append(np.nan)
+                                player_ranking_data.append(temp)
+                            except:
+                                continue
+                    
+                elif pos == "DST":
+                    for rt in rankingTables:
+                        #extracting expert name
+                        expert = rt.find("a", class_=authorNameAClass).span.text
+
+                        #looping through the divs that contain all the player level ranking data
+                        ranks = rt.find("div", class_=playersDivClass)
+                        for p in ranks:
+                            temp = ["cbs", self.today, self.season, self.week, pos, expert]
+                            try:
+                                team = str.strip(p.find("span", class_="player-name").text)
+                                temp.append(str.strip(p.find("div", class_="rank").text))  #expert rank, number  .text
+                                temp.append(team)  #cbs shortName  .text
+                                temp.append(str.strip(p.find("a")["href"].split("/")[4])) # cbs playerId is in the url
+                                temp.append(team) # contains the player nfl team 
+                                temp.append(pos) # contains the player nfl position
+                                temp.append(np.nan)
+                                temp.append(np.nan)
+                                player_ranking_data.append(temp)
+                            except:
+                                continue
                 
-            elif pos == "DST":
-                for rt in rankingTables:
-                    #extracting expert name
-                    expert = rt.find("a", class_=authorNameAClass).span.text
-
-                    #looping through the divs that contain all the player level ranking data
-                    ranks = rt.find("div", class_=playersDivClass)
-                    for p in ranks:
-                        temp = ["cbs", self.today, self.season, self.week, pos, expert]
-                        try:
-                            team = str.strip(p.find("span", class_="player-name").text)
-                            temp.append(str.strip(p.find("div", class_="rank").text))  #expert rank, number  .text
-                            temp.append(team)  #cbs shortName  .text
-                            temp.append(str.strip(p.find("a")["href"].split("/")[4])) # cbs playerId is in the url
-                            temp.append(team) # contains the player nfl team 
-                            temp.append(pos) # contains the player nfl position
-                            temp.append(np.nan)
-                            temp.append(np.nan)
-                            player_ranking_data.append(temp)
-                        except:
-                            continue
+                else:
+                    for rt in rankingTables:
+                        #extracting expert name
+                        expert = rt.find("a", class_=authorNameAClass).span.text
+                        #looping through the divs that contain all the player level ranking data
+                        ranks = rt.find("div", class_=playersDivClass)
+                        for p in ranks:
+                            temp = ["cbs", self.today, self.season, self.week, pos, expert]
+                            try:
+                                temp.append(str.strip(p.find("div", class_="rank").text))  #expert rank, number  .text
+                                temp.append(str.strip(p.find("span", class_="player-name").text).replace(".", ""))  #cbs shortName  .text
+                                temp.append(str.strip(p.find("a")["href"].split("/")[3])) # cbs playerId is in the url
+                                temp.append(str.strip(p.find("span", class_="team position").text.split()[0])) # contains the player nfl team 
+                                temp.append(pos) # contains the player nfl team
+                                temp.append(np.nan)
+                                temp.append(np.nan)
+                                player_ranking_data.append(temp)
+                            except:
+                                continue
+                    
+                # creating temp dataframe that includes all 3 expert rankings for a grouping to add to the master df 
+                temp_df = pd.DataFrame(player_ranking_data, columns=hf.ranking_columns)        
+                df_cbs_ranking = pd.concat([df_cbs_ranking, temp_df], axis = 0, ignore_index=True)
             
+            #offseason run
             else:
-                for rt in rankingTables:
-                    #extracting expert name
-                    expert = rt.find("a", class_=authorNameAClass).span.text
-                    #looping through the divs that contain all the player level ranking data
-                    ranks = rt.find("div", class_=playersDivClass)
-                    for p in ranks:
-                        temp = ["cbs", self.today, self.season, self.week, pos, expert]
-                        try:
-                            temp.append(str.strip(p.find("div", class_="rank").text))  #expert rank, number  .text
-                            temp.append(str.strip(p.find("span", class_="player-name").text).replace(".", ""))  #cbs shortName  .text
-                            temp.append(str.strip(p.find("a")["href"].split("/")[3])) # cbs playerId is in the url
-                            temp.append(str.strip(p.find("span", class_="team position").text.split()[0])) # contains the player nfl team 
-                            temp.append(pos) # contains the player nfl team
-                            temp.append(np.nan)
-                            temp.append(np.nan)
-                            player_ranking_data.append(temp)
-                        except:
-                            continue
-                
-            # creating temp dataframe that includes all 3 expert rankings for a grouping to add to the master df 
-            temp_df = pd.DataFrame(player_ranking_data, columns=hf.ranking_columns)        
-            df_cbs_ranking = pd.concat([df_cbs_ranking, temp_df], axis = 0, ignore_index=True)
-            
+                url_rankings = self.scraping_urls['cbs']['offseason']['rankings']
+
+                for pos in positions:
+                    time.sleep(3)    
+                    # retreiving HTML and converting it to soup
+                    url_formatted = url_rankings.format(pos=pos)
+                    r = requests.get(url_formatted)
+                    soup = bs(r.text)
+
+                    # finding the tables with rankings
+                    rankingTables = soup.find_all("div", class_=individualRankingDivClass)
+                    
+                    # looping through the 3 expert ranks that are in their own tables
+                    player_ranking_data = []
+                    if pos == "DST":
+                        for rt in rankingTables:
+                            #extracting expert name
+                            expert = rt.find("a", class_=authorNameAClass).span.text
+
+                            #looping through the divs that contain all the player level ranking data
+                            ranks = rt.find("div", class_=playersDivClass)
+                            for p in ranks:
+                                temp = ["cbs", self.today, pos, expert]
+                                try:
+                                    team = str.strip(p.find("span", class_="player-name").text)
+                                    temp.append(str.strip(p.find("div", class_="rank").text))  #expert rank, number  .text
+                                    temp.append(team)  #cbs shortName  .text
+                                    temp.append(str.strip(p.find("a")["href"].split("/")[4])) # cbs playerId is in the url
+                                    temp.append(team) # contains the player nfl team 
+                                    temp.append(pos) # contains the player nfl position 
+                                    player_ranking_data.append(temp)
+                                except:
+                                    continue
+                    
+                    else:
+                        for rt in rankingTables:
+                            #extracting expert name
+                            expert = rt.find("a", class_=authorNameAClass).span.text
+
+                            #looping through the divs that contain all the player level ranking data
+                            ranks = rt.find("div", class_=playersDivClass)
+                            for p in ranks:
+                                temp = ["cbs", self.today, pos, expert]
+                                try:
+                                    temp.append(str.strip(p.find("div", class_="rank").text))  #expert rank, number  .text
+                                    temp.append(str.strip(p.find("span", class_="player-name").text).replace(".", ""))  #cbs shortName  .text
+                                    temp.append(str.strip(p.find("a")["href"].split("/")[4])) # cbs playerId is in the url
+                                    temp.append(str.strip(p.find("span", class_="team position").text.split()[0])) # contains the player nfl team 
+                                    temp.append(pos) # contains the player nfl team 
+                                    player_ranking_data.append(temp)
+                                except:
+                                    continue
+                        
+                    # creating temp dataframe that includes all 3 expert rankings for a grouping to add to the master df 
+                    temp_df = pd.DataFrame(player_ranking_data, columns=hf.ranking_columns)        
+                    df_cbs_ranking = pd.concat([df_cbs_ranking, temp_df], axis = 0, ignore_index=True)
+
+
         if export:
             filepath = str(hf.DATA_DIR) + "/ranking/weekly/cbs_rank_{season}-{week}_{date}.csv".format(season=self.season, week=self.strWeek, date=self.today)
             df_cbs_ranking.to_csv(filepath, index=False)
@@ -432,10 +690,9 @@ class scrapers():
 
     def cbs_adp(
         self,
-        export = True,
-        cbs_adp_url = "https://www.cbssports.com/fantasy/football/draft/averages/",
-        database_table = 'adp'
+        export = True
     ):
+        cbs_adp_url = self.scraping_urls['cbs']['offseason']['adp']
         r = requests.get(cbs_adp_url)
         soup = bs(r.text, features='lxml')
 
@@ -465,268 +722,222 @@ class scrapers():
             
         df_cbs_adp = pd.DataFrame(adps, columns = hf.adp_columns)
         if export:
-            filepath = str(hf.DATA_DIR) + "/projection/offseason/cbs_adp_{season}-{week}_{date}.csv".format(season=self.season, week=self.strWeek, date=self.today)
+            filepath = str(hf.DATA_DIR) + "/adp/cbs_adp_{season}-{week}_{date}.csv".format(season=self.season, week=self.strWeek, date=self.today)
             df_cbs_adp.to_csv(filepath, index=False)
 
         self.scraped_dfs['adps']['cbs'] = df_cbs_adp.copy()
-
         return
-
-
     # ====================
     #       ffp
     # ====================
     def ffp_ecr_rankings(
         self,
+        inseason=False,
         export = True,
-        urls = [
-            r"https://www.fantasypros.com/nfl/rankings/half-point-ppr-{}",
-            r"https://www.fantasypros.com/nfl/rankings/{}"
-        ],
         waitTime = 15,
-        database_table = 'ranking'
     ):
     
         driver = hf.open_browser()
-
+        
         df_ecr_ranks = pd.DataFrame(columns=hf.ranking_columns)
 
-        # try to close driver if there are any errors
-        try:
-            for i in range(len(urls)):
-                if i == 0:
-                    pos = ['SUPERFLEX', 'FLEX', 'TE', 'WR', 'RB']
-                    for j in pos:
-                        player_ranks = []
-                        driver.get(urls[i].format(j.lower()))
+        if inseason:
+            urls = self.scraping_urls['ffp']['inseason']['rankings']
 
-                        # Accepting cookies if there is a popup
-                        try:
-                            WebDriverWait(driver, timeout=waitTime).until(lambda d: d.find_element("xpath", "//button[contains(text(), 'Accept Cookies')]"))
-                            cookies = driver.find_element("xpath", '//*[@id="onetrust-accept-btn-handler"]')
-                            cookies.click()
+            # try to close driver if there are any errors
+            try:
+                for i in range(len(urls)):
+                    if i == 0:
+                        pos = ['SUPERFLEX', 'FLEX', 'TE', 'WR', 'RB']
+                        for j in pos:
+                            player_ranks = []
+                            driver.get(urls[i].format(j.lower()))
 
-                        except: pass
+                            # Accepting cookies if there is a popup
+                            try:
+                                WebDriverWait(driver, timeout=waitTime).until(lambda d: d.find_element("xpath", "//button[contains(text(), 'Accept Cookies')]"))
+                                cookies = driver.find_element("xpath", '//*[@id="onetrust-accept-btn-handler"]')
+                                cookies.click()
 
-                        #driver.execute_script('videos = document.querySelectorAll("video"); for(video of videos) {video.pause()}')
+                            except: pass
 
-                        # select drop down that defaults to Overview and selecting Ranks
-                        WebDriverWait(driver, timeout=waitTime).until(lambda d: d.find_element("xpath", "//button[span[contains(text(), 'Overview')]]"))     
-                        drop = driver.find_element("xpath", "//button[span[contains(text(), 'Overview')]]")
-                        drop.click()
+                            #driver.execute_script('videos = document.querySelectorAll("video"); for(video of videos) {video.pause()}')
 
-                        WebDriverWait(driver, timeout=waitTime).until(lambda d: d.find_element("xpath", "//button[div[contains(text(), 'Ranks')]]"))     
-                        drop = driver.find_element("xpath", "//button[div[contains(text(), 'Ranks')]]")
-                        drop.click()
+                            # select drop down that defaults to Overview and selecting Ranks
+                            WebDriverWait(driver, timeout=waitTime).until(lambda d: d.find_element("xpath", "//button[span[contains(text(), 'Overview')]]"))     
+                            drop = driver.find_element("xpath", "//button[span[contains(text(), 'Overview')]]")
+                            drop.click()
 
-                        # grab all html
-                        html = driver.page_source
-                        soup = bs(html, 'lxml')  #parse the html
+                            WebDriverWait(driver, timeout=waitTime).until(lambda d: d.find_element("xpath", "//button[div[contains(text(), 'Ranks')]]"))     
+                            drop = driver.find_element("xpath", "//button[div[contains(text(), 'Ranks')]]")
+                            drop.click()
 
-                        table = soup.find("table", id='ranking-table').find("tbody")
-                        ranks = table.find_all("tr")
+                            # grab all html
+                            html = driver.page_source
+                            soup = bs(html, 'lxml')  #parse the html
 
-                        for tr in ranks:
-                            tds = tr.find_all("td")
-                            #for td in tds:
-                                #print(td.text)
+                            table = soup.find("table", id='ranking-table').find("tbody")
+                            ranks = table.find_all("tr")
 
-                            # some of the ecr defensive groups have teams in the rankings this will skip them
-                            name = tds[2].text.split("(")[0].strip().replace(".", "")
-                            if name in list(hf.team_map.keys()):
-                                continue
+                            for tr in ranks:
+                                tds = tr.find_all("td")
+                                #for td in tds:
+                                    #print(td.text)
 
-                            if j in ['SUPERFLEX', 'FLEX']:
-                                rank = tds[0].text
-                                team = tds[2].text.split("(")[1].strip().replace(")", "")
-                                player = tds[2].find("div", class_='player-cell player-cell__td')['data-player']
-                                high = tds[4].text
-                                low = tds[5].text
-                            else:
-                                rank = tds[0].text
-                                team = tds[2].text.split("(")[1].strip().replace(")", "")
-                                player = tds[2].find("div", class_='player-cell player-cell__td')['data-player']
-                                high = tds[4].text
-                                low = tds[5].text
+                                # some of the ecr defensive groups have teams in the rankings this will skip them
+                                name = tds[2].text.split("(")[0].strip().replace(".", "")
+                                if name in list(hf.team_map.keys()):
+                                    continue
+
+                                if j in ['SUPERFLEX', 'FLEX']:
+                                    rank = tds[0].text
+                                    team = tds[2].text.split("(")[1].strip().replace(")", "")
+                                    player = tds[2].find("div", class_='player-cell player-cell__td')['data-player']
+                                    high = tds[4].text
+                                    low = tds[5].text
+                                else:
+                                    rank = tds[0].text
+                                    team = tds[2].text.split("(")[1].strip().replace(")", "")
+                                    player = tds[2].find("div", class_='player-cell player-cell__td')['data-player']
+                                    high = tds[4].text
+                                    low = tds[5].text
 
 
-                            player_ranks.append(['fantasyPros', self.today, self.season, self.week, j, 'ecr', rank, name, player, team, np.nan,  high, low])
+                                player_ranks.append(['fantasyPros', self.today, self.season, self.week, j, 'ecr', rank, name, player, team, np.nan,  high, low])
 
-                        temp = pd.DataFrame(player_ranks,  columns=hf.ranking_columns)
-                        df_ecr_ranks = pd.concat([df_ecr_ranks, temp])
+                            temp = pd.DataFrame(player_ranks,  columns=hf.ranking_columns)
+                            df_ecr_ranks = pd.concat([df_ecr_ranks, temp])
 
-                if i == 1:
-                    pos = ['QB', 'K', 'DST', 'IDP', 'DL' ,'LB', 'DB']
-                    for j in pos:
-                        player_ranks = []
-                        driver.get(urls[i].format(j.lower()))
+                    if i == 1:
+                        pos = ['QB', 'K', 'DST', 'IDP', 'DL' ,'LB', 'DB']
+                        for j in pos:
+                            player_ranks = []
+                            driver.get(urls[i].format(j.lower()))
 
-                        # Accepting cookies if there is a popup
-                        try:
-                            WebDriverWait(driver, timeout=waitTime).until(lambda d: d.find_element("xpath", "//button[contains(text(), 'Accept')]"))
-                            cookies = driver.find_element("xpath", "//button[contains(text(), 'Accept')]")
-                            cookies.click()
+                            # Accepting cookies if there is a popup
+                            try:
+                                WebDriverWait(driver, timeout=waitTime).until(lambda d: d.find_element("xpath", "//button[contains(text(), 'Accept')]"))
+                                cookies = driver.find_element("xpath", "//button[contains(text(), 'Accept')]")
+                                cookies.click()
 
-                        except: pass
+                            except: pass
 
-                        # select drop down that defaults to Overview and selecting Ranks
-                                                                    # actual buttom xpath //*[@id="onetrust-accept-btn-handler"]
-                        WebDriverWait(driver, timeout=waitTime).until(lambda d: d.find_element("xpath", "//button[span[contains(text(), 'Overview')]]"))
-                        
-                        drop = driver.find_element("xpath", "//button[span[contains(text(), 'Overview')]]")
+                            # select drop down that defaults to Overview and selecting Ranks
+                                                                        # actual buttom xpath //*[@id="onetrust-accept-btn-handler"]
+                            WebDriverWait(driver, timeout=waitTime).until(lambda d: d.find_element("xpath", "//button[span[contains(text(), 'Overview')]]"))
+                            
+                            drop = driver.find_element("xpath", "//button[span[contains(text(), 'Overview')]]")
 
-                        drop.click()
+                            drop.click()
 
-                        WebDriverWait(driver, timeout=waitTime).until(lambda d: d.find_element("xpath", "//button[div[contains(text(), 'Ranks')]]"))     
-                        drop = driver.find_element("xpath", "//button[div[contains(text(), 'Ranks')]]")
-                        drop.click()
+                            WebDriverWait(driver, timeout=waitTime).until(lambda d: d.find_element("xpath", "//button[div[contains(text(), 'Ranks')]]"))     
+                            drop = driver.find_element("xpath", "//button[div[contains(text(), 'Ranks')]]")
+                            drop.click()
 
-                        # grab all html
-                        html = driver.page_source
-                        soup = bs(html, 'lxml')  #parse the html
+                            # grab all html
+                            html = driver.page_source
+                            soup = bs(html, 'lxml')  #parse the html
 
-                        table = soup.find("table", id='ranking-table').find("tbody")
-                        ranks = table.find_all("tr")
+                            table = soup.find("table", id='ranking-table').find("tbody")
+                            ranks = table.find_all("tr")
 
-                        for tr in ranks:
-                            tds = tr.find_all("td")
+                            for tr in ranks:
+                                tds = tr.find_all("td")
 
-                            # some of the ecr defensive groups have teams in the rankings this will skip them
-                            name = tds[2].text.split("(")[0].strip().replace(".", "")
-                            if name in list(hf.team_map.keys()):
-                                continue
+                                # some of the ecr defensive groups have teams in the rankings this will skip them
+                                name = tds[2].text.split("(")[0].strip().replace(".", "")
+                                if name in list(hf.team_map.keys()):
+                                    continue
 
-                            if j == 'IDP':
-                                rank = tds[0].text
-                                team = tds[2].text.split("(")[1].strip().replace(")", "")
-                                player = tds[2].find("div", class_='player-cell player-cell__td')['data-player']
-                                high = tds[4].text
-                                low = tds[5].text
+                                if j == 'IDP':
+                                    rank = tds[0].text
+                                    team = tds[2].text.split("(")[1].strip().replace(")", "")
+                                    player = tds[2].find("div", class_='player-cell player-cell__td')['data-player']
+                                    high = tds[4].text
+                                    low = tds[5].text
 
-                            else:
-                                rank = tds[0].text
-                                team = tds[2].text.split("(")[1].strip().replace(")", "")
-                                player = tds[2].find("div", class_='player-cell player-cell__td')['data-player']
-                                high = tds[3].text
-                                low = tds[4].text
+                                else:
+                                    rank = tds[0].text
+                                    team = tds[2].text.split("(")[1].strip().replace(")", "")
+                                    player = tds[2].find("div", class_='player-cell player-cell__td')['data-player']
+                                    high = tds[3].text
+                                    low = tds[4].text
 
-                            player_ranks.append(['fantasyPros', self.today, self.season, self.week, j, 'ecr', rank, name, player, team, np.nan,  high, low])
+                                player_ranks.append(['fantasyPros', self.today, self.season, self.week, j, 'ecr', rank, name, player, team, np.nan,  high, low])
 
-                        temp = pd.DataFrame(player_ranks, columns=hf.ranking_columns)
-                        df_ecr_ranks = pd.concat([df_ecr_ranks, temp])
-        except Exception as ex:
-            print(ex)
+                            temp = pd.DataFrame(player_ranks, columns=hf.ranking_columns)
+                            df_ecr_ranks = pd.concat([df_ecr_ranks, temp])
+            except Exception as ex:
+                print(ex)
+                driver.close()
+                
             driver.close()
+
+        # OFFSEASON
+        else:
+            urls = self.scraping_urls['ffp']['offseason']['rankings']
+            data = []
             
-        driver.close()
+            # grab all html
+            driver.get(urls)
+            time.sleep(3)
+             # Accepting cookies if there is a popup
+            try:
+                WebDriverWait(driver, timeout=waitTime).until(lambda d: d.find_element("xpath", "//button[contains(text(), 'Accept Cookies')]"))
+                cookies = driver.find_element("xpath", '//*[@id="onetrust-accept-btn-handler"]')
+                cookies.click()
+
+            except: pass
+            html = driver.page_source
+            soup = bs(html, 'lxml')  #parse the html
+            driver.close()
+
+            table = soup.find("table", id='ranking-table')
+            tbody = table.find("tbody")
+            ranks = tbody.find_all("tr")
+            for tr in ranks:
+                tds = tr.find_all("td")
+                # skip the rows that are sub-headers with no data
+                if len(tds) < 7:
+                    continue
+                else:
+                    rank = int(tds[0].text)
+                    player_data = tds[2]
+                    player_a_tag = player_data.find('a')
+                    player_span_tag = player_data.find('span', class_='player-cell-team')
+                    pid = player_a_tag['fp-player-id']
+                    name = player_a_tag['fp-player-name']
+                    team = player_span_tag.text.strip('()') 
+                    pos = re.sub(r'\d+', '', tds[3].text)
+
+                    #[
+                    # 'outlet','date','season','week', 'group','expert','rank',
+                    # 'name','playerId','team','pos','high','low'
+                    # ]
+                    # outlet and expert Are my id for FFP in my db
+                    temp = [
+                        'fantasyPros', self.today, self.season, self.week, pos, 'ecr', rank, name,
+                        pid, team, pos, np.nan, np.nan
+                    ]
+
+                    data.append(temp)
+
+            temp = pd.DataFrame(data, columns=hf.ranking_columns)
+            df_ecr_ranks = pd.concat([df_ecr_ranks, temp]) 
 
         if export:
-            filepath = str(hf.DATA_DIR) + "/ranking/weekly/fpEcr_rank_{season}-{week}_{date}.csv".format(season=self.season, week=self.strWeek, date=self.today)
+            filepath = str(hf.DATA_DIR) + "/ranking/fpEcr_rank_{season}-{week}_{date}.csv".format(season=self.season, week=self.strWeek, date=self.today)
             df_ecr_ranks.to_csv(filepath, index=False)
 
         self.scraped_dfs['rankings']['ffp_ecr'] = df_ecr_ranks.copy()
         return df_ecr_ranks.shape
     
-    def ffp_rankings(
-        self,
-        export = True,
-        url_fp_rankings = r"https://www.fantasypros.com/nfl/fantasy-football-rankings/{pos}.php",
-        database_table = 'ranking'
-    ):
-        
-        fp_url_positions = {
-            "QB":"weekly-qb", 
-            "RB":"weekly-half-point-ppr-rb",
-            "WR":"weekly-half-point-ppr-wr", 
-            "TE":"weekly-half-point-ppr-te", 
-            "K":"weekly-k", 
-            "DST":"weekly-dst",
-            "FLEX":"weekly-half-point-ppr-flex", 
-            "SUPERFLEX":"weekly-half-point-ppr-superflex"
-        }
-
-        all_ranks = []
-
-        for k,v in fp_url_positions.items(): 
-            
-            time.sleep(3)
-            url_fp_formatted = url_fp_rankings.format(pos=v)
-            r = requests.get(url_fp_formatted)
-            soup = bs(r.text)
-            
-            # getting expert name and rank date
-            experts = []
-            for a in soup.find_all("th", class_="expert__th"):
-                temp = []
-                temp.append(a['data-sort-label'])   # expert name
-                temp.append(str.strip(a.find("div", class_="expert__publish-date").text))  #ranking publish date
-                experts.append(temp)
-
-            # getting player info and ranks
-            if k == "DST":
-                for p in soup.find_all("tr", class_="player-row mpb-player__tr"):
-                    playerId = p["data-pid"]  # fp playerid
-                    shortName = p.find("span", class_="mobile-only").text.split()[0].replace(".", "") # fp short name
-                    #fullName = p.find("span", class_="everything-but-mobile js-sort-field").text # fp full name
-                    TEAM = p.find("span", class_="player__team").text  # player nfl team
-                    POS = p.find("span", class_="player__position").text  # player position
-
-                    html_ranks = p.find_all("td", attrs={'class': None})
-                    for r in range(len(html_ranks)):
-                        temp_fp_ranking = [shortName, playerId, TEAM, POS] 
-
-                        temp_fp_ranking.insert(0, html_ranks[r].text) # ranking
-                        temp_fp_ranking.insert(0, experts[r][0]) # expert
-                        temp_fp_ranking.insert(0, k) # group ranking set
-                        temp_fp_ranking.insert(0, self.week) #season week
-                        temp_fp_ranking.insert(0, self.season) #season year
-                        temp_fp_ranking.insert(0, experts[r][1]) # date
-                        temp_fp_ranking.insert(0, "fantasyPros") # outlet
-                        temp_fp_ranking.append(np.nan)
-                        temp_fp_ranking.append(np.nan)
-                        all_ranks.append(temp_fp_ranking)
-            
-            else:
-                for p in soup.find_all("tr", class_="player-row mpb-player__tr"):
-                    playerId = p["data-pid"]  # fp playerid
-                    shortName = p.find("span", class_="mobile-only").text.replace(".", "") # fp short name
-                    #fullName = p.find("span", class_="everything-but-mobile js-sort-field").text # fp full name
-                    TEAM = p.find("span", class_="player__team").text  # player nfl team
-                    POS = p.find("span", class_="player__position").text  # player position
-
-                    html_ranks = p.find_all("td", attrs={'class': None})
-                    for r in range(len(html_ranks)):
-                        temp_fp_ranking = [shortName, playerId, TEAM, POS] 
-
-                        temp_fp_ranking.insert(0, html_ranks[r].text) # ranking
-                        temp_fp_ranking.insert(0, experts[r][0]) # expert
-                        temp_fp_ranking.insert(0, k) # group ranking set
-                        temp_fp_ranking.insert(0, self.week) #season week
-                        temp_fp_ranking.insert(0, self.season) #season year
-                        temp_fp_ranking.insert(0, experts[r][1]) # date
-                        temp_fp_ranking.insert(0, "fantasyPros") # outlet
-                        temp_fp_ranking.append(np.nan)
-                        temp_fp_ranking.append(np.nan)
-                        all_ranks.append(temp_fp_ranking)
-                        
-        df_fp_ranking = pd.DataFrame(all_ranks, columns=hf.ranking_columns).replace("-", np.nan).replace("N/A", np.nan)
-        
-        if export:
-            filepath = str(hf.DATA_DIR) + "/ranking/weekly/fp_rank_{season}-{week}_{date}.csv".format(season=self.season, week=self.strWeek, date=self.today)
-            df_fp_ranking.to_csv(filepath, index=False)
-
-        self.scraped_dfs['rankings']['ffp'] = df_fp_ranking.copy()
-        return df_fp_ranking.shape
-    
     def ffp_adp(
         self,
-        export = True,
-        fp_adp_url = r"https://www.fantasypros.com/nfl/adp/half-point-ppr-overall.php",
-        database_table = 'adp',
-        date_override = None
+        export = True
     ):
-        today = date_override or self.today
 
+        fp_adp_url = self.scraping_urls['ffp']['offseason']['adp']
         r = requests.get(fp_adp_url)
         soup = bs(r.text, features='lxml')
 
@@ -764,19 +975,19 @@ class scrapers():
             ###
             # adding an entry for each sites adp. they are their own records
             yahoo = data[3].text
-            temp = ["yahoo", today, playerId, fullName, np.nan, pos, team, yahoo, np.nan, np.nan]
+            temp = ["yahoo", self.today, playerId, fullName, np.nan, pos, team, yahoo, np.nan, np.nan]
             adps.append(temp)
             
             fantrax = data[4].text
-            temp = ["fantrax", today, playerId, fullName, np.nan, pos, team, fantrax, np.nan, np.nan]
+            temp = ["fantrax", self.today, playerId, fullName, np.nan, pos, team, fantrax, np.nan, np.nan]
             adps.append(temp)
             
             ffc = data[5].text
-            temp = ["ffc", today, playerId, fullName, np.nan, pos, team, ffc, np.nan, np.nan]
+            temp = ["ffc", self.today, playerId, fullName, np.nan, pos, team, ffc, np.nan, np.nan]
             adps.append(temp)
             
             sleeper = data[6].text
-            temp = ["sleeper", today, playerId, fullName, np.nan, pos, team, sleeper, np.nan, np.nan]
+            temp = ["sleeper", self.today, playerId, fullName, np.nan, pos, team, sleeper, np.nan, np.nan]
             adps.append(temp)
             
             #avg = data[7].text
@@ -786,7 +997,7 @@ class scrapers():
         
         
         if export:
-            filepath = str(hf.DATA_DIR) + "/ranking/projection/fp_adp_{season}-{week}_{date}.csv".format(season=self.season, week=self.strWeek, date=self.today)
+            filepath = str(hf.DATA_DIR) + "//adp//fp_adp_{season}-{week}_{date}.csv".format(season=self.season, week=self.strWeek, date=self.today)
             df_fp_adp.to_csv(filepath, index=False)
 
         self.scraped_dfs['adps']['ffp'] = df_fp_adp.copy()
@@ -796,132 +1007,246 @@ class scrapers():
     # ====================
     def espn_projections(
         self,
+        inseason=False,
         export = True,
-        url_espn_proj = "https://fantasy.espn.com/football/players/projections?leagueFormatId=3",
         database_table = 'projection'
     ):
+        df_espn_proj = pd.DataFrame(columns = hf.projection_columns)
         
         driver = hf.open_browser()
-        driver.get(url_espn_proj) 
-        # sleep to let the html load
-        time.sleep(10)
+        if inseason:
+
+            url_espn_proj = self.scraping_urls['espn']['inseason']['projections']
+            driver.get(url_espn_proj) 
+            # sleep to let the html load
+            time.sleep(10)
 
 
-        try:
-            # changing to the desired projection view
-            button = driver.find_element(By.XPATH, "//button[@class='Button Button--filter player--filters__projections-button']")
-            button.click()
-            time.sleep(5)
-            
-            # grabs the entire pages html
-            html = driver.execute_script("return document.body.innerHTML")
-            soup = bs(html)
-            
-            # grabbing the number of pages there are in the projections
-            pagenation_list = soup.find("div", class_="Pagination__wrap overflow-x-auto")
-            pages = pagenation_list.find_all("li")
-            last_page = pages[-1].text
-            
-        except Exception as ex:
-            print(ex)
-            driver.close()
-            
-        espn_player_proj_player = []
-        page_count1 = 0
-        page_count2 = 0
-
-        for page in range(1, 13):  #int(last_page)+1):
             try:
+                # changing to the desired projection view
+                button = driver.find_element(By.XPATH, "//button[@class='Button Button--filter player--filters__projections-button']")
+                button.click()
+                time.sleep(5)
+                
+                # grabs the entire pages html
                 html = driver.execute_script("return document.body.innerHTML")
-                soup = bs(html)
-
-                # grabbing the projection tables
-                tables = soup.find_all("table")
+                soup = bs(html, features='lxml')
                 
-                # the player info table
-                for tr in tables[0].find_all("tr"):
-                    for td in tr:
-                        if td.find("a", class_="AnchorLink link clr-link pointer"):
-                            
-                            #grabs the ESPN player id from the image url
-                            playerId = td.find("img")['src'].split("/")[-1].split(".")[0]
-                            #dst has player ID as the team abbreviation. This catches it
-                            try:
-                                int(playerId)
-                            except:
-                                playerId = ""
-                                
-                            name = td.find("a", class_="AnchorLink link clr-link pointer").text.replace(".", "")
-                            position = td.find("span", class_="playerinfo__playerpos ttu").text.replace("/","").split(",")[0]
-                            team = td.find("span", class_="playerinfo__playerteam").text.upper()
-
-                            espn_player_proj_player.append(["espn", self.today, self.season, self.week, playerId, name, np.nan, position, team, np.nan])
-
-
-                # the stat projection table
-                for tr in tables[1].find_all("tr",class_="Table__TR Table__TR--lg Table__odd"):
-                    comp_att = tr.find("div", {"title":"Each Pass Completed & Each Pass Attempted"}).text.split("/")
-                    pass_comps = comp_att[0]
-                    pass_atts = comp_att[1]
-                    pass_yds = tr.find("div", {"title":"Passing Yards"}).text
-                    pass_tds = tr.find("div", {"title":"TD Pass"}).text
-                    ints = tr.find("div", {"title":"Interceptions Thrown"}).text
-                    rush_atts = tr.find("div", {"title":"Rushing Attempts"}).text
-                    rush_yds = tr.find("div", {"title":"Rushing Yards"}).text
-                    rush_tds = tr.find("div", {"title":"TD Rush"}).text
-                    rec = tr.find("div", {"title":"Each reception"}).text
-                    rec_yds = tr.find("div", {"title":"Receiving Yards"}).text
-                    rec_tds = tr.find("div", {"title":"TD Reception"}).text
-                    rec_trgts = tr.find("div", {"title":"Receiving Target"}).text
-                    
-                    espn_player_proj_player[page_count1].extend([pass_atts, pass_comps,pass_yds, 0, pass_tds,
-                                                                ints, 0, rush_atts,rush_yds,0, rush_tds,rec_trgts,rec,rec_yds,0,0,rec_tds,
-                                                                0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0])
-                    page_count1 += 1
-            
-                # the fantasy points table
-                                                
-                for tr in tables[2].find_all("tr",class_="Table__TR Table__TR--lg Table__odd"):
-                    for div in tr.find_all("div"):
-                        # some of the free agents/retired players don't have div["title"] need to catch them with try
-                        try:
-                            if 'point' in div['title']:
-                                total_ff_pts = div.find("span").text
-                                avg_ff_pts = 0
-                        except:
-                            total_ff_pts = 0
-                            avg_ff_pts = 0
-
-                    espn_player_proj_player[page_count2].extend([total_ff_pts, avg_ff_pts])
-                    page_count2 += 1
+                # grabbing the number of pages there are in the projections
+                pagenation_list = soup.find("div", class_="Pagination__wrap overflow-x-auto")
+                pages = pagenation_list.find_all("li")
+                last_page = pages[-1].text
                 
-                #checks for last page
-                
-                if page < int(last_page):
-                    # jumping to the next page
-                    nextButton = driver.find_element(By.XPATH, "//button[@class='Button Button--default Button--icon-noLabel Pagination__Button Pagination__Button--next']")
-                    nextButton.click()
-                    time.sleep(10)
-                    
             except Exception as ex:
                 print(ex)
                 driver.close()
+                
+            espn_player_proj_player = []
+            page_count1 = 0
+            page_count2 = 0
 
-        try:
-            driver.close()
-        except:
-            pass
+            for page in range(1, 13):  #int(last_page)+1):
+                try:
+                    html = driver.execute_script("return document.body.innerHTML")
+                    soup = bs(html, features='lxml')
 
-        # creating df from gathered data to merge into final df that matches the cbs structure
-        temp_proj = pd.DataFrame(espn_player_proj_player, columns = hf.projection_columns)
+                    # grabbing the projection tables
+                    tables = soup.find_all("table")
+                    
+                    # the player info table
+                    for tr in tables[0].find_all("tr"):
+                        for td in tr:
+                            if td.find("a", class_="AnchorLink link clr-link pointer"):
                                 
-        df_espn_proj = pd.DataFrame(columns = hf.projection_columns)
+                                #grabs the ESPN player id from the image url
+                                playerId = td.find("img")['src'].split("/")[-1].split(".")[0]
+                                #dst has player ID as the team abbreviation. This catches it
+                                try:
+                                    int(playerId)
+                                except:
+                                    playerId = ""
+                                    
+                                name = td.find("a", class_="AnchorLink link clr-link pointer").text.replace(".", "")
+                                position = td.find("span", class_="playerinfo__playerpos ttu").text.replace("/","").split(",")[0]
+                                team = td.find("span", class_="playerinfo__playerteam").text.upper()
 
-        #final espn projections data
-        df_espn_proj = pd.concat([df_espn_proj, temp_proj]).replace("--", 0)
+                                espn_player_proj_player.append(["espn", self.today, self.season, self.week, playerId, name, np.nan, position, team, np.nan])
+
+
+                    # the stat projection table
+                    for tr in tables[1].find_all("tr",class_="Table__TR Table__TR--lg Table__odd"):
+                        comp_att = tr.find("div", {"title":"Each Pass Completed & Each Pass Attempted"}).text.split("/")
+                        pass_comps = comp_att[0]
+                        pass_atts = comp_att[1]
+                        pass_yds = tr.find("div", {"title":"Passing Yards"}).text
+                        pass_tds = tr.find("div", {"title":"TD Pass"}).text
+                        ints = tr.find("div", {"title":"Interceptions Thrown"}).text
+                        rush_atts = tr.find("div", {"title":"Rushing Attempts"}).text
+                        rush_yds = tr.find("div", {"title":"Rushing Yards"}).text
+                        rush_tds = tr.find("div", {"title":"TD Rush"}).text
+                        rec = tr.find("div", {"title":"Each reception"}).text
+                        rec_yds = tr.find("div", {"title":"Receiving Yards"}).text
+                        rec_tds = tr.find("div", {"title":"TD Reception"}).text
+                        rec_trgts = tr.find("div", {"title":"Receiving Target"}).text
+                        
+                        espn_player_proj_player[page_count1].extend([pass_atts, pass_comps,pass_yds, 0, pass_tds,
+                                                                    ints, 0, rush_atts,rush_yds,0, rush_tds,rec_trgts,rec,rec_yds,0,0,rec_tds,
+                                                                    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0])
+                        page_count1 += 1
+                
+                    # the fantasy points table
+                                                    
+                    for tr in tables[2].find_all("tr",class_="Table__TR Table__TR--lg Table__odd"):
+                        for div in tr.find_all("div"):
+                            # some of the free agents/retired players don't have div["title"] need to catch them with try
+                            try:
+                                if 'point' in div['title']:
+                                    total_ff_pts = div.find("span").text
+                                    avg_ff_pts = 0
+                            except:
+                                total_ff_pts = 0
+                                avg_ff_pts = 0
+
+                        espn_player_proj_player[page_count2].extend([total_ff_pts, avg_ff_pts])
+                        page_count2 += 1
+                    
+                    #checks for last page
+                    
+                    if page < int(last_page):
+                        # jumping to the next page
+                        nextButton = driver.find_element(By.XPATH, "//button[@class='Button Button--default Button--icon-noLabel Pagination__Button Pagination__Button--next']")
+                        nextButton.click()
+                        time.sleep(10)
+                        
+                except Exception as ex:
+                    print(ex)
+                    driver.close()
+
+            try:
+                driver.close()
+            except:
+                pass
+
+            # creating df from gathered data to merge into final df that matches the cbs structure
+            df_espn_proj = pd.DataFrame(espn_player_proj_player, columns = hf.projection_columns).replace("--", 0)
+
+            #final espn projections data
+            #df_espn_proj = pd.concat([df_espn_proj, temp_proj]).replace("--", 0)
+        
+        # OFFSEASON
+        else:
+            url_espn_proj = self.scraping_urls['espn']['offseason']['projections']
+            driver.get(url_espn_proj) 
+            # sleep to let the html load
+            time.sleep(10)
+
+            try:
+                # changing to the desired projection view
+                button = driver.find_element(By.XPATH, "//button[@class='Button Button--filter player--filters__projections-button']")
+                button.click()
+                time.sleep(5)
+                
+                # grabs the entire pages html
+                html = driver.execute_script("return document.body.innerHTML")
+                soup = bs(html, features='lxml')
+                
+                # grabbing the number of pages there are in the projections
+                pagenation_list = soup.find("div", class_="Pagination__wrap overflow-x-auto")
+                pages = pagenation_list.find_all("li")
+                last_page = pages[-1].text
+                
+            except Exception as ex:
+                print(ex)
+                driver.close()
+                
+
+            espn_player_proj_player = []
+            page_count1 = 0
+            page_count2 = 0
+
+            for page in range(1, int(last_page)+1):
+                try:
+                    html = driver.execute_script("return document.body.innerHTML")
+                    soup = bs(html, features='lxml')
+
+                    # grabbing the projection tables
+                    tables = soup.find_all("table")
+                    
+                    # the player info table
+                    for tr in tables[0].find_all("tr"):
+                        for td in tr:
+                            if td.find("a", class_="AnchorLink link clr-link pointer"):
+                                #grabs the ESPN player id from the image url
+                                playerId = td.find("img")['src'].split("/")[-1].split(".")[0]
+                                name = td.find("a", class_="AnchorLink link clr-link pointer").text.replace(".", "")
+                                position = td.find("span", class_="playerinfo__playerpos ttu").text
+                                team = td.find("span", class_="playerinfo__playerteam").text
+
+                                espn_player_proj_player.append(["espn", self.today, self.season, self.week, playerId, name, np.nan, position, team, np.nan])
+
+
+                    # the stat projection table
+                    for tr in tables[1].find_all("tr",class_="Table__TR Table__TR--lg Table__odd"):
+                        comp_att = tr.find("div", {"title":"Each Pass Completed & Each Pass Attempted"}).text.split("/")
+                        pass_comps = comp_att[0]
+                        pass_atts = comp_att[1]
+                        pass_yds = tr.find("div", {"title":"Passing Yards"}).text
+                        pass_tds = tr.find("div", {"title":"TD Pass"}).text
+                        ints = tr.find("div", {"title":"Interceptions Thrown"}).text
+                        rush_atts = tr.find("div", {"title":"Rushing Attempts"}).text
+                        rush_yds = tr.find("div", {"title":"Rushing Yards"}).text
+                        rush_tds = tr.find("div", {"title":"TD Rush"}).text
+                        rec = tr.find("div", {"title":"Each reception"}).text
+                        rec_yds = tr.find("div", {"title":"Receiving Yards"}).text
+                        rec_tds = tr.find("div", {"title":"TD Reception"}).text
+                        rec_trgts = tr.find("div", {"title":"Receiving Target"}).text
+                        
+                        espn_player_proj_player[page_count1].extend([pass_atts, pass_comps,pass_yds, 0, pass_tds,
+                                                                    ints, 0, rush_atts,rush_yds,0, rush_tds,rec_trgts,rec,rec_yds,0,0,rec_tds,
+                                                                    0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0])
+                        page_count1 += 1
+                
+                    # the fantasy points table
+                    for tr in tables[2].find_all("tr",class_="Table__TR Table__TR--lg Table__odd"):
+                        for div in tr.find_all("div"):
+                            # some of the free agents/retired players don't have div["title"] need to catch them with try
+                            try:
+                                if 'point' in div['title']:
+                                    total_ff_pts = div.find("span").text
+                                else:
+                                    avg_ff_pts = div.find("span").text
+                            except:
+                                total_ff_pts = 0
+                                avg_ff_pts = 0
+
+                        espn_player_proj_player[page_count2].extend([total_ff_pts, avg_ff_pts])
+                        page_count2 += 1
+                    
+                    #checks for last page
+                    
+                    if page < int(last_page):
+                        # jumping to the next page
+                        nextButton = driver.find_element(By.XPATH, "//button[@class='Button Button--default Button--icon-noLabel Pagination__Button Pagination__Button--next']")
+                        nextButton.click()
+                        time.sleep(10)
+                        
+                except Exception as ex:
+                    print(ex)
+                    driver.close()
+
+            try:
+                driver.close()
+            except:
+                pass
+
+            # creating df from gathered data to merge into final df that matches the cbs structure
+            df_espn_proj = pd.DataFrame(espn_player_proj_player, columns = hf.projection_columns).replace("--", 0)
+                                    
+            #final espn projections data
+            #df_espn_proj = pd.concat([df_espn_proj, temp_proj])
 
         if export:
-            filepath = str(hf.DATA_DIR) + "/projection/weekly/espn_proj_{season}-{week}_{date}.csv".format(season=self.season, week=self.strWeek, date=self.today)
+            filepath = str(hf.DATA_DIR) + "/projection/espn_proj_{season}-{week}_{date}.csv".format(season=self.season, week=self.strWeek, date=self.today)
             df_espn_proj.to_csv(filepath, index=False)
 
         self.scraped_dfs['projections']['espn'] = df_espn_proj.copy()
@@ -929,23 +1254,8 @@ class scrapers():
 
     def espn_rankings(
         self,
+        inseason=False,
         export = True,
-        espn_ranking_urls = {
-        #"QB":"https://www.espn.com/fantasy/football/story/_/page/23ffweekrankQBPPR/nfl-fantasy-football-rankings-2024-qb-quarterback",
-        "QB":"https://www.espn.com/fantasy/football/story/_/page/FFWeeklyPlayerRank24QB-41029053/nfl-fantasy-football-rankings-2024-qb-quarterback",
-        #"RB":"https://www.espn.com/fantasy/football/story/_/page/23ffweekrankRBPPR/nfl-fantasy-football-rankings-2024-rb-running-back",
-        "RB":"https://www.espn.com/fantasy/football/story/_/page/FFWeeklyPlayerRank24RB-41030431/nfl-fantasy-football-rankings-2024-rb-running-back",
-        #"WR":"https://www.espn.com/fantasy/football/story/_/page/23ffweekrankWRPPR/nfl-fantasy-football-rankings-2024-wr-wide-receiver",
-        "WR":"https://www.espn.com/fantasy/football/story/_/page/FFWeeklyPlayerRank24WR-41030448/nfl-fantasy-football-rankings-2024-wr-wide-receiver",
-        #"TE":"https://www.espn.com/fantasy/football/story/_/page/23ffweekrankTEPPR/nfl-fantasy-football-rankings-2024-te-tight-end",
-        "TE":"https://www.espn.com/fantasy/football/story/_/page/FFWeeklyPlayerRank24TE-41030543/nfl-fantasy-football-rankings-2024-te-tight-end",
-        #"K":"https://www.espn.com/fantasy/football/story/_/page/23ffweekrankKPPR/nfl-fantasy-football-rankings-2024-kicker",
-        "K":"https://www.espn.com/fantasy/football/story/_/page/FFWeeklyPlayerRank24K-41030564/nfl-fantasy-football-rankings-2024-k-kicker",
-        #"DST":"https://www.espn.com/fantasy/football/story/_/page/23ffweekrankDSTPPR/nfl-fantasy-football-rankings-2024-dst-defense",
-        "DST":"https://www.espn.com/fantasy/football/story/_/page/FFWeeklyPlayerRank24DST-41030584/nfl-fantasy-football-rankings-2024-dst-defense",
-        #"IDP":"https://www.espn.com/fantasy/football/story/_/page/23ffweekrankIDP/nfl-fantasy-football-rankings-2024-idp-defense-dl-lb-db",
-        "IDP":"https://www.espn.com/fantasy/football/story/_/page/FFWeeklyPlayerRank24IDP-41031094/nfl-fantasy-football-rankings-2024-idp-defense-dl-lb-db"
-        },
         database_table = 'ranking'
     ):
         # final dataframe structure to hosue all the rankings
@@ -953,30 +1263,86 @@ class scrapers():
 
         driver = hf.open_browser()
 
-        #try to closed driver if there are any errors
-        try:
-            # looping through the urls to aggregate the rankings
-            for group, url in espn_ranking_urls.items():
-                # opening the webpage and allowing the scripts to load for the HTML to be accessed
+        if inseason:
+            espn_ranking_urls = self.scraping_urls['espn']['inseason']['rankings']
+            #try to closed driver if there are any errors
+            try:
+                # looping through the urls to aggregate the rankings
+                for group, url in espn_ranking_urls.items():
+                    # opening the webpage and allowing the scripts to load for the HTML to be accessed
 
-                url_espn_formatted = url.format(season=self.season)
-                driver.get(url_espn_formatted)
-                time.sleep(10)
+                    url_espn_formatted = url.format(season=self.season)
+                    driver.get(url_espn_formatted)
+                    time.sleep(10)
 
-                # grabs the entire pages html
-                html = driver.execute_script("return document.body.innerHTML")
-                soup = bs(html)
+                    # grabs the entire pages html
+                    html = driver.execute_script("return document.body.innerHTML")
+                    soup = bs(html, features='lxml')
 
-                # this will hold a list of list. One list will be a players rank for a single expert
-                player_ranks = []
+                    # this will hold a list of list. One list will be a players rank for a single expert
+                    player_ranks = []
 
-                # IDP page has 3 separate tables for positions instead of a single position on the page and a single table handled in the else below
-                if group == "IDP":
-                    ranking_tables = soup.find_all("table", class_="inline-table rankings-table fullWidth sortable")
-                    count = 0 # hard coded the positions based on the which table the site holds them in
+                    # IDP page has 3 separate tables for positions instead of a single position on the page and a single table handled in the else below
+                    if group == "IDP":
+                        ranking_tables = soup.find_all("table", class_="inline-table rankings-table fullWidth sortable")
+                        count = 0 # hard coded the positions based on the which table the site holds them in
 
-                    # 3 tables for the 3 IDPs  DL, LB, DB
-                    for ranking_table in ranking_tables:
+                        # 3 tables for the 3 IDPs  DL, LB, DB
+                        for ranking_table in ranking_tables:
+
+                            # retrieves the expert names and the order they are listed
+                            expert_names_html = ranking_table.find("thead").find_all("th")
+                            expert_names = []
+                            for tr in range(2, len(expert_names_html)-1):
+                                expert_names.append(expert_names_html[tr].text)
+
+                            player_ranks_html = ranking_table.find("tbody").find_all("tr")#, class_="")
+                            for tr in player_ranks_html:
+
+                                tds = tr.find_all("td")
+
+                                playerId = tds[0].find("a")["data-player-id"]
+                                name = tds[0].find("a").text.replace(".", "")
+
+                                if count == 0:
+                                    POS = "DL"
+                                elif count == 1:
+                                    POS = "LB"
+                                elif count == 2:
+                                    POS = "DB"
+
+                                # try block to handle injury designations that the site puts in the same text as the team name
+                                try:
+                                    #if there is a injury designation, it retrieves it and then removes it from the team name
+                                    injury = tds[0].find_all("div", class_="rank")[0].find("span").text
+                                    if len(injury) > 1:  # Accounts for suspended tag "SSPD"
+                                        team = tds[0].find_all("div", class_="rank")[0].text.split(",")[1].strip().upper()[:-4]
+                                    else:
+                                        team = tds[0].find_all("div", class_="rank")[0].text.split(",")[1].strip().upper()[:-1]
+
+                                except:
+                                    team = tds[0].find("div", class_="rank").text.split(",")[1].strip().upper()
+
+                                for i in range(len(expert_names)):
+
+                                    # expert name from the list generated from thead
+                                    expert = expert_names[i]
+                                    # position of the expert ranking column in tbody
+                                    idx = i + 2
+
+                                    # retrieves the expert rank from tbody rows
+                                    exRank = pd.to_numeric(tds[idx].text, errors='coerce')
+
+                                    player_ranks.append(["espn", self.today, self.season, self.week, POS, expert, exRank, name, playerId, team,  POS, np.nan, np.nan])
+
+                            count += 1
+
+
+                    # for position specific rankings
+                    else:
+
+                        ranking_table = soup.find("table", class_="inline-table rankings-table fullWidth sortable")
+                        #driver.close()
 
                         # retrieves the expert names and the order they are listed
                         expert_names_html = ranking_table.find("thead").find_all("th")
@@ -984,7 +1350,87 @@ class scrapers():
                         for tr in range(2, len(expert_names_html)-1):
                             expert_names.append(expert_names_html[tr].text)
 
-                        player_ranks_html = ranking_table.find("tbody").find_all("tr", class_="")
+                        player_ranks_html = ranking_table.find("tbody").find_all("tr")#, class_="")
+                        for tr in player_ranks_html:
+
+                            tds = tr.find_all("td")
+
+                            playerId = tds[0].find("a")["data-player-id"]
+                            if group == "DST":
+                                name = tds[0].find("a").text.split()[0].replace(".", "")
+                            else:
+                                name = tds[0].find("a").text.replace(".", "")
+
+                            POS = group
+
+                            #team = tds[0].find("div", class_="rank").text.split(",")[1].strip().upper()
+                            # try block to handle injury designations that the site puts in the same text as the team name
+                            try:
+                                #if there is a injury designation, it retrieves it and then removes it from the team name
+                                injury = tds[0].find_all("div", class_="rank")[0].find("span").text
+                                if len(injury) > 1:  # Accounts for suspended tag "SSPD"
+                                    team = tds[0].find_all("div", class_="rank")[0].text.split(",")[1].strip().upper()[:-4]
+                                else:
+                                    team = tds[0].find_all("div", class_="rank")[0].text.split(",")[1].strip().upper()[:-1]
+
+                            except:
+                                team = tds[0].find("div", class_="rank").text.split(",")[1].strip().upper()
+
+                            for i in range(len(expert_names)-1):
+
+                                # expert name from the list generated from thead
+                                expert = expert_names[i]
+                                # position of the expert ranking column in tbody
+                                idx = i + 2
+
+                                # retrieves the expert rank from tbody rows
+                                exRank = pd.to_numeric(tds[idx].text, errors='coerce')
+
+                                player_ranks.append(["espn", self.today, self.season, self.week, group, expert, exRank, name, playerId, team,  POS, np.nan, np.nan])
+
+                    temp_df = pd.DataFrame(player_ranks, columns=hf.ranking_columns)
+                    df_espn_ranking = pd.concat([df_espn_ranking, temp_df], axis = 0, ignore_index=True)
+                
+            except Exception as ex:
+                print(ex)
+                driver.close()    
+                
+            driver.close() 
+        
+        # OFFSEASON
+        else:
+            espn_ranking_urls = self.scraping_urls['espn']['offseason']['rankings']
+
+            # looping through the urls to aggregate the rankings
+            for group, url in espn_ranking_urls.items():
+                # opening the webpage and allowing the scripts to load for the HTML to be accessed
+                
+                url_espn_formatted = url
+                driver.get(url_espn_formatted)
+                time.sleep(10)
+
+                # grabs the entire pages html
+                html = driver.execute_script("return document.body.innerHTML")
+                soup = bs(html, features='lxml')
+                
+                # this will hold a list of list. One list will be a players rank for a single expert
+                player_ranks = []
+                
+                # IDP page has 3 separate tables for positions instead of a single position on the page and a single table handled in the else below
+                if group == "IDP":
+                    ranking_tables = soup.find_all("table", class_="inline-table rankings-table fullWidth sortable")
+                    count = 0 # hard coded the positions based on the which table the site holds them in
+                    
+                    # 3 tables for the 3 IDPs  DL, LB, DB
+                    for ranking_table in ranking_tables:
+
+                        # retrieves the expert names and the order they are listed
+                        expert_names_html = ranking_table.find("thead").find_all("th")
+                        expert_names = []
+                        for tr in range(2, len(expert_names_html)):
+                            expert_names.append(expert_names_html[tr].text)
+
+                        player_ranks_html = ranking_table.find("tbody").find_all("tr")#, class_="")
                         for tr in player_ranks_html:
 
                             tds = tr.find_all("td")
@@ -1024,33 +1470,33 @@ class scrapers():
                                 player_ranks.append(["espn", self.today, self.season, self.week, POS, expert, exRank, name, playerId, team,  POS, np.nan, np.nan])
 
                         count += 1
-
-
+                
+                
                 # for position specific rankings
                 else:
-
+                
                     ranking_table = soup.find("table", class_="inline-table rankings-table fullWidth sortable")
                     #driver.close()
-
+                    
                     # retrieves the expert names and the order they are listed
                     expert_names_html = ranking_table.find("thead").find_all("th")
                     expert_names = []
-                    for tr in range(2, len(expert_names_html)-1):
+                    for tr in range(2, len(expert_names_html)):
                         expert_names.append(expert_names_html[tr].text)
 
-                    player_ranks_html = ranking_table.find("tbody").find_all("tr", class_="")
+                    player_ranks_html = ranking_table.find("tbody").find_all("tr")#, class_="")
                     for tr in player_ranks_html:
 
                         tds = tr.find_all("td")
 
                         playerId = tds[0].find("a")["data-player-id"]
                         if group == "DST":
-                            name = tds[0].find("a").text.split()[0].replace(".", "")
+                            name = tds[0].find("a").text.split()[0]
                         else:
                             name = tds[0].find("a").text.replace(".", "")
-
+                            
                         POS = group
-
+                        
                         #team = tds[0].find("div", class_="rank").text.split(",")[1].strip().upper()
                         # try block to handle injury designations that the site puts in the same text as the team name
                         try:
@@ -1065,7 +1511,7 @@ class scrapers():
                             team = tds[0].find("div", class_="rank").text.split(",")[1].strip().upper()
 
                         for i in range(len(expert_names)-1):
-
+                            
                             # expert name from the list generated from thead
                             expert = expert_names[i]
                             # position of the expert ranking column in tbody
@@ -1074,19 +1520,15 @@ class scrapers():
                             # retrieves the expert rank from tbody rows
                             exRank = pd.to_numeric(tds[idx].text, errors='coerce')
 
-                            player_ranks.append(["espn", self.today, self.season, self.week, group, expert, exRank, name, playerId, team,  POS, np.nan, np.nan])
+                            player_ranks.append(["espn", self.today, self.season, self.week, POS, expert, exRank, name, playerId, team,  POS, np.nan, np.nan])
 
+                
                 temp_df = pd.DataFrame(player_ranks, columns=hf.ranking_columns)
                 df_espn_ranking = pd.concat([df_espn_ranking, temp_df], axis = 0, ignore_index=True)
-            
-        except Exception as ex:
-            print(ex)
-            driver.close()    
-            
-        driver.close() 
+            driver.close()
         
         if export:
-            filepath = str(hf.DATA_DIR) + "/ranking/weekly/espn_rank_{season}-{week}_{date}.csv".format(season=self.season, week=self.strWeek, date=self.today)
+            filepath = str(hf.DATA_DIR) + "/ranking/espn_rank_{season}-{week}_{date}.csv".format(season=self.season, week=self.strWeek, date=self.today)
             df_espn_ranking.to_csv(filepath, index=False)
 
         self.scraped_dfs['rankings']['espn'] = df_espn_ranking.copy()
@@ -1095,11 +1537,10 @@ class scrapers():
     def espn_adp(
         self,
         export = True,
-        espn_adp_url = r"https://fantasy.espn.com/football/livedraftresults",
-        database_table = 'adp',
-        date_override = None
+
     ):
-        today = date_override or self.today
+
+        espn_adp_url = self.scraping_urls['espn']['offseason']['adp']
         driver = hf.open_browser()
         driver.get(espn_adp_url) 
         # sleep to let the html load
@@ -1131,7 +1572,7 @@ class scrapers():
                 else:
                     playerId  = data[1].find('img', src=True)['src'].split("/")[10].split(".")[0]
 
-                temp = ["espn", today, playerId, fullName, np.nan, pos, team, adp, np.nan, np.nan]
+                temp = ["espn", self.today, playerId, fullName, np.nan, pos, team, adp, np.nan, np.nan]
                 adps.append(temp)
             
             # looping over the pages for ADP
@@ -1141,7 +1582,7 @@ class scrapers():
             
             # grabs the entire pages html for the new page and sets it for the next scrap iteration
             html = driver.execute_script("return document.body.innerHTML")
-            soup = bs(html)
+            soup = bs(html, features='lxml')
             
             table = soup.find("tbody", class_="Table__TBODY")
 
@@ -1149,7 +1590,7 @@ class scrapers():
         df_espn_adp = pd.DataFrame(adps, columns=hf.adp_columns)
         
         if export:
-            filepath = str(hf.DATA_DIR) + "/ranking/projection/espn_adp_{season}-{week}_{date}.csv".format(season=self.season, week=self.strWeek, date=self.today)
+            filepath = str(hf.DATA_DIR) + "//adp//espn_adp_{season}-{week}_{date}.csv".format(season=self.season, week=self.strWeek, date=self.today)
             df_espn_adp.to_csv(filepath, index=False)
 
         self.scraped_dfs['adps']['espn'] = df_espn_adp.copy()
@@ -1160,82 +1601,42 @@ class scrapers():
     # ====================
     def nfl_projections(
         self,
+        inseason=False,
         export = True,
-        # position=  0:QB,RB,WR,TE  7:Kicker, 8:D
-        nfl_proj_url = [
-        "https://fantasy.nfl.com/research/projections?offset={offset}&position=0&statCategory=projectedStats&statSeason={season}&statType=weekProjectedStats&statWeek={week}",
-        "https://fantasy.nfl.com/research/projections?offset={offset}&position=7&statCategory=projectedStats&statSeason={season}&statType=weekProjectedStats&statWeek={week}",
-        "https://fantasy.nfl.com/research/projections?offset={offset}&position=8&statCategory=projectedStats&statSeason={season}&statType=weekProjectedStats&statWeek={week}",
-        ],
         database_table = 'projection'
     ):
+        
+        # position=  0:QB,RB,WR,TE  7:Kicker, 8:D
+
         df_nfl_proj = pd.DataFrame(columns=hf.projection_columns)
         player_data = []
-        # count will be updated to the player count after the first page load 
-        # this is being used to avoid loading more pages than needed
-        count = 3000
 
-        #looping through the 3 URLs, the site has QB,RB,WR,TE combined in a single list and then K and D on their own pages
-        for i in range(3):
-            if i == 0:  # this will handle the offensive players
-                while count > 25:
-                    
-                    # this grabs the first page, else will handle all others
-                    if count == 3000:
-                        time.sleep(1)
-                        r = requests.get(nfl_proj_url[0].format(offset=1, season=self.season, week=self.week))
-                        soup = bs(r.text)
+        if inseason:
+            nfl_proj_url = self.scraping_urls['nfl']['inseason']['projections']
 
-                        # grabs the number of players with projections on the site. pagenated at 25 a page
-                        player_count = int(soup.find("span", class_="paginationTitle").text.split("of")[-1].strip())
-                        count = player_count
+            # count will be updated to the player count after the first page load 
+            # this is being used to avoid loading more pages than needed
+            count = 3000
 
-                        table = soup.find_all("table", class_="tableType-player hasGroups")
-
-                        body_trs = table[0].find("tbody").find_all("tr")
-
-                        for tr in body_trs:
-                            data = tr.find_all("td")
-
-                            firstColA = data[0].find('a')
-                            playerId = firstColA['href'].split("=")[2]
-                            fullName = firstColA.text.strip().replace(".", "")
-
-                            posAndTeam = data[0].find('em').text.split("-")
-                            pos = posAndTeam[0].strip()
-                            try:
-                                team = posAndTeam[1].strip()
-                            except:
-                                team = "FA"
-
-                            
-                            PassingYards = data[2].text
-                            TouchdownsPasses = data[3].text
-                            InterceptionsThrown = data[4].text
-                            RushingYards = data[5].text
-                            RushingTouchdowns = data[6].text
-                            Receptions = data[7].text
-                            ReceivingYards = data[8].text
-                            ReceivingTouchdowns = data[9].text
-                            retTd = data[10].text
-                            fumTd = data[11].text
-                            twoPt= data[12].text
-                            FumblesLost = data[13].text
-                            FantasyPoints = data[14].text
-
-                            temp = ["nfl", self.today, self.season, self.week, playerId,fullName,np.nan,pos,team,0,0,0,PassingYards,0,TouchdownsPasses, InterceptionsThrown,
-                                    0,0,RushingYards,0,RushingTouchdowns,0,Receptions,ReceivingYards,0,0,ReceivingTouchdowns,
-                                    FumblesLost,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,twoPt,FantasyPoints,0]
-                            player_data.append(temp)
-
-                    else:
-                        for j in range(26, player_count, 25):
+            #looping through the 3 URLs, the site has QB,RB,WR,TE combined in a single list and then K and D on their own pages
+            for i in range(3):
+                if i == 0:  # this will handle the offensive players
+                    while count > 25:
+                        
+                        # this grabs the first page, else will handle all others
+                        if count == 3000:
                             time.sleep(1)
-                            r = requests.get(nfl_proj_url[0].format(offset=j, season=self.season, week=self.week))
-                            soup = bs(r.text)
-                            table = soup.find_all("table", class_="tableType-player hasGroups")
-                            body_trs = table[0].find("tbody").find_all("tr")
+                            r = requests.get(nfl_proj_url[0].format(offset=1, season=self.season, week=self.week))
+                            soup = bs(r.text, features='lxml')
 
+                            # grabs the number of players with projections on the site. pagenated at 25 a page
+                            player_count = int(soup.find("span", class_="paginationTitle").text.split("of")[-1].strip())
+                            count = player_count
+
+                            table = soup.find_all("table", class_="tableType-player hasGroups")
+
+                            body_trs = table[0].find("tbody").find_all("tr")
+                            
                             for tr in body_trs:
                                 data = tr.find_all("td")
 
@@ -1250,6 +1651,7 @@ class scrapers():
                                 except:
                                     team = "FA"
 
+                                
                                 PassingYards = data[2].text
                                 TouchdownsPasses = data[3].text
                                 InterceptionsThrown = data[4].text
@@ -1269,79 +1671,292 @@ class scrapers():
                                         FumblesLost,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,twoPt,FantasyPoints,0]
                                 player_data.append(temp)
 
-                            count -= 25
+                        else:
+                            for j in range(26, player_count, 25):
+                                time.sleep(1)
+                                r = requests.get(nfl_proj_url[0].format(offset=j, season=self.season, week=self.week))
+                                soup = bs(r.text, features='lxml')
+                                table = soup.find_all("table", class_="tableType-player hasGroups")
+                                body_trs = table[0].find("tbody").find_all("tr")
+
+                                for tr in body_trs:
+                                    data = tr.find_all("td")
+
+                                    firstColA = data[0].find('a')
+                                    playerId = firstColA['href'].split("=")[2]
+                                    fullName = firstColA.text.strip().replace(".", "")
+
+                                    posAndTeam = data[0].find('em').text.split("-")
+                                    pos = posAndTeam[0].strip()
+                                    try:
+                                        team = posAndTeam[1].strip()
+                                    except:
+                                        team = "FA"
+
+                                    PassingYards = data[2].text
+                                    TouchdownsPasses = data[3].text
+                                    InterceptionsThrown = data[4].text
+                                    RushingYards = data[5].text
+                                    RushingTouchdowns = data[6].text
+                                    Receptions = data[7].text
+                                    ReceivingYards = data[8].text
+                                    ReceivingTouchdowns = data[9].text
+                                    retTd = data[10].text
+                                    fumTd = data[11].text
+                                    twoPt= data[12].text
+                                    FumblesLost = data[13].text
+                                    FantasyPoints = data[14].text
+
+                                    temp = ["nfl", self.today, self.season, self.week, playerId,fullName,np.nan,pos,team,0,0,0,PassingYards,0,TouchdownsPasses, InterceptionsThrown,
+                                            0,0,RushingYards,0,RushingTouchdowns,0,Receptions,ReceivingYards,0,0,ReceivingTouchdowns,
+                                            FumblesLost,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,twoPt,FantasyPoints,0]
+                                    player_data.append(temp)
+
+                                count -= 25
+                                
+                else: # this will handle K and D
+                    for j in range(2):  
+                        
+                        time.sleep(1)
+                        r = requests.get(nfl_proj_url[i].format(offset=j*25+1, season=self.season, week=self.week))  # k and d only have 2 pages, j *25 + 1 handles the url offset that pagenates
+                        soup = bs(r.text, features='lxml')
+
+                        table = soup.find_all("table", class_="tableType-player hasGroups")
+
+                        body_trs = table[0].find("tbody").find_all("tr")
+
+                        for tr in body_trs:
+                            data = tr.find_all("td")
+                            temp = []
                             
-            else: # this will handle K and D
-                for j in range(2):  
+                            firstColA = data[0].find('a')
+                            playerId = firstColA['href'].split("=")[2]
+                            fullName = firstColA.text.strip().replace(".", "")
+
+                            posAndTeam = data[0].find('em').text.split("-")
+                            
+                            
+                            if i == 1:  # K url
+                                
+                                pos = posAndTeam[0].strip()
+                                try:
+                                    team = posAndTeam[1].strip()
+                                except:
+                                    team = "FA"
+                                    
+                                xpMade = data[2].text
+                                made0_19 = float(data[3].text.replace("-", "0"))
+                                made20_29 = float(data[4].text.replace("-", "0"))
+                                made30_39 = float(data[5].text.replace("-", "0"))
+                                made40_49 = float(data[6].text.replace("-", "0"))
+                                made50 = float(data[7].text.replace("-", "0"))
+                                fgMade = made0_19 + made20_29 + made30_39 + made40_49 + made50
+                                FantasyPoints = data[8].text
+
+                                temp = ["nfl", self.today, self.season, self.week, playerId,fullName,np.nan,pos,team,0,0,0,0,0,0, 0,
+                                                0,0,0,0,0,0,0,0,0,0,0,0,
+                                                fgMade,0,0,made0_19,0,made20_29,0,made30_39,0,made40_49,0,made50,0,xpMade,0,0,
+                                                0,0,0,0,0,0,0,0,0,0,0,0,0,0,FantasyPoints,0]
+                                player_data.append(temp)    
+                                    
+                            else: # D url
+                                pos = 'DST'
+                                team = fullName
+                                sacks = data[2].text
+                                interceptions = data[3].text
+                                fum = data[4].text
+                                safety = data[5].text
+                                defTd = data[6].text
+                                twoPt = data[7].text
+                                retTd = data[8].text
+                                ptsAllowed= data[9].text
+                                fantasyPts= data[10].text
+                                
+                                    
+                                
+                                temp = ["nfl", self.today, self.season, self.week, playerId,np.nan,np.nan,pos,team,0,0,0,0,0,0,0,
+                                        0,0,0,0,0,0,0,0,0,0,0,
+                                        FumblesLost,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,interceptions,safety,sacks,0,fum,0,
+                                        defTd, retTd,ptsAllowed,0,0,0,0,0,twoPt,fantasyPts,0]
+                                
+                                player_data.append(temp)
                     
-                    time.sleep(1)
-                    r = requests.get(nfl_proj_url[i].format(offset=j*25+1, season=self.season, week=self.week))  # k and d only have 2 pages, j *25 + 1 handles the url offset that pagenates
-                    soup = bs(r.text)
+            df_nfl_proj = pd.DataFrame(player_data, columns=hf.projection_columns).replace("-",0)
 
-                    table = soup.find_all("table", class_="tableType-player hasGroups")
+        # OFFSEASON
+        else:
+            nfl_proj_url = self.scraping_urls['nfl']['offseason']['projections']
+            
+            # count will be updated to the player count after the first page load 
+            # this is being used to avoid loading more pages than needed
+            count = 3000
 
-                    body_trs = table[0].find("tbody").find_all("tr")
+            #looping through the 3 URLs, the site has QB,RB,WR,TE combined in a single list and then K and D on their own pages
+            for i in range(3):
+                if i == 0:  # this will handle the offensive players
+                    while count > 25:
+                        if count == 3000:
+                            time.sleep(1)
+                            r = requests.get(nfl_proj_url[0].format(offset=0, season=self.season))
+                            soup = bs(r.text, features='lxml')
 
-                    for tr in body_trs:
-                        data = tr.find_all("td")
-                        temp = []
+                            # grabs the number of players with projections on the site. pagenated at 25 a page
+                            player_count = int(soup.find("span", class_="paginationTitle").text.split("of")[-1].strip())
+                            count = player_count
+
+                            table = soup.find_all("table", class_="tableType-player hasGroups")
+
+                            body_trs = table[0].find("tbody").find_all("tr")
+
+                            for tr in body_trs:
+                                data = tr.find_all("td")
+
+                                firstColA = data[0].find('a')
+                                playerId = firstColA['href'].split("=")[2]
+                                fullName = firstColA.text.strip().replace(".", "")
+
+                                posAndTeam = data[0].find('em').text.split("-")
+                                pos = posAndTeam[0].strip()
+                                try:
+                                    team = posAndTeam[1].strip()
+                                except:
+                                    team = "FA"
+
+                                gp = data[2].text
+                                PassingYards = data[3].text
+                                TouchdownsPasses = data[4].text
+                                InterceptionsThrown = data[5].text
+                                RushingYards = data[6].text
+                                RushingTouchdowns = data[7].text
+                                Receptions = data[8].text
+                                ReceivingYards = data[9].text
+                                ReceivingTouchdowns = data[10].text
+                                retTd = data[11].text
+                                fumTd = data[12].text
+                                twoPt= data[13].text
+                                FumblesLost = data[14].text
+                                FantasyPoints = data[15].text
+
+                                temp = ["nfl", self.today, self.season, self.week, playerId,fullName,np.nan,pos,team,0,0,0,PassingYards,0,TouchdownsPasses, InterceptionsThrown,
+                                        0,0,RushingYards,0,RushingTouchdowns,0,Receptions,ReceivingYards,0,0,ReceivingTouchdowns,
+                                        FumblesLost,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,twoPt,FantasyPoints,0]
+                                player_data.append(temp)
+
+                        else:
+                            for j in range(26, player_count, 25):
+                                time.sleep(1)
+                                r = requests.get(nfl_proj_url[0].format(offset=0, season=self.season))
+                                soup = bs(r.text, features='lxml')
+                                table = soup.find_all("table", class_="tableType-player hasGroups")
+                                body_trs = table[0].find("tbody").find_all("tr")
+
+                                for tr in body_trs:
+                                    data = tr.find_all("td")
+
+                                    firstColA = data[0].find('a')
+                                    playerId = firstColA['href'].split("=")[2]
+                                    fullName = firstColA.text.strip().replace(".", "")
+
+                                    posAndTeam = data[0].find('em').text.split("-")
+                                    pos = posAndTeam[0].strip()
+                                    try:
+                                        team = posAndTeam[1].strip()
+                                    except:
+                                        team = "FA"
+
+                                    gp = data[2].text
+                                    PassingYards = data[3].text
+                                    TouchdownsPasses = data[4].text
+                                    InterceptionsThrown = data[5].text
+                                    RushingYards = data[6].text
+                                    RushingTouchdowns = data[7].text
+                                    Receptions = data[8].text
+                                    ReceivingYards = data[9].text
+                                    ReceivingTouchdowns = data[10].text
+                                    retTd = data[11].text
+                                    fumTd = data[12].text
+                                    twoPt= data[13].text
+                                    FumblesLost = data[14].text
+                                    FantasyPoints = data[15].text
+
+                                    temp = ["nfl", self.today, self.season, self.week, playerId,fullName,np.nan,pos,team,0,0,0,PassingYards,0,TouchdownsPasses, InterceptionsThrown,
+                                        0,0,RushingYards,0,RushingTouchdowns,0,Receptions,ReceivingYards,0,0,ReceivingTouchdowns,
+                                        FumblesLost,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,twoPt,FantasyPoints,0]
+                                    player_data.append(temp)
+
+                                count -= 25
+                                
+                else: # this will handle K and D
+                    for j in range(2):  
                         
-                        firstColA = data[0].find('a')
-                        playerId = firstColA['href'].split("=")[2]
-                        fullName = firstColA.text.strip().replace(".", "")
+                        time.sleep(1)
+                        r = requests.get(nfl_proj_url[i].format(offset=j*25+1, season=self.season))  # k and d only have 2 pages, j *25 + 1 handles the url offset that pagenates
+                        soup = bs(r.text, features='lxml')
 
-                        posAndTeam = data[0].find('em').text.split("-")
-                        
-                        
-                        if i == 1:  # K url
+                        table = soup.find_all("table", class_="tableType-player hasGroups")
+
+                        body_trs = table[0].find("tbody").find_all("tr")
+
+                        for tr in body_trs:
+                            data = tr.find_all("td")
+                            temp = []
                             
+                            firstColA = data[0].find('a')
+                            playerId = firstColA['href'].split("=")[2]
+                            fullName = firstColA.text.strip().replace(".", "")
+
+                            posAndTeam = data[0].find('em').text.split("-")
                             pos = posAndTeam[0].strip()
-                            try:
-                                team = posAndTeam[1].strip()
-                            except:
-                                team = "FA"
-                                
-                            xpMade = data[2].text
-                            made0_19 = float(data[3].text.replace("-", "0"))
-                            made20_29 = float(data[4].text.replace("-", "0"))
-                            made30_39 = float(data[5].text.replace("-", "0"))
-                            made40_49 = float(data[6].text.replace("-", "0"))
-                            made50 = float(data[7].text.replace("-", "0"))
-                            fgMade = made0_19 + made20_29 + made30_39 + made40_49 + made50
-                            FantasyPoints = data[8].text
+                            
+                            if i == 1:  # K url
+                                try:
+                                    team = posAndTeam[1].strip()
+                                except:
+                                    team = "FA"
+                                    
+                                gp = data[2].text
+                                xpMade = data[3].text
+                                made0_19 = data[4].text
+                                made20_29 = data[5].text
+                                made30_39 = data[6].text
+                                made40_49 = data[7].text
+                                made50 = data[8].text
+                                fgMade = made0_19 + made20_29 + made30_39 + made40_49 + made50
+                                FantasyPoints = data[9].text
 
-                            temp = ["nfl", self.today, self.season, self.week, playerId,fullName,np.nan,pos,team,0,0,0,0,0,0, 0,
-                                            0,0,0,0,0,0,0,0,0,0,0,0,
-                                            fgMade,0,0,made0_19,0,made20_29,0,made30_39,0,made40_49,0,made50,0,xpMade,0,0,
-                                            0,0,0,0,0,0,0,0,0,0,0,0,0,0,FantasyPoints,0]
-                            player_data.append(temp)    
+                                temp = ["nfl", self.today, self.season, self.week, playerId,fullName,np.nan,pos,team,0,0,0,0,0,0, 0,
+                                                0,0,0,0,0,0,0,0,0,0,0,0,
+                                                fgMade,0,0,made0_19,0,made20_29,0,made30_39,0,made40_49,0,made50,0,xpMade,0,0,
+                                                0,0,0,0,0,0,0,0,0,0,0,0,0,0,FantasyPoints,0]
+                                player_data.append(temp)    
+                                    
+                            else: # D url
                                 
-                        else: # D url
-                            pos = 'DST'
-                            team = fullName
-                            sacks = data[2].text
-                            interceptions = data[3].text
-                            fum = data[4].text
-                            safety = data[5].text
-                            defTd = data[6].text
-                            twoPt = data[7].text
-                            retTd = data[8].text
-                            ptsAllowed= data[9].text
-                            fantasyPts= data[10].text
-                            
+                                team = fullName
+                                gp = data[2].text
+                                sacks = data[3].text
+                                interceptions = data[4].text
+                                fum = data[5].text
+                                safety = data[6].text
+                                defTd = data[7].text
+                                twoPt = data[8].text
+                                retTd = data[9].text
+                                ptsAllowed= data[10].text
+                                fantasyPts= data[11].text
                                 
-                            
-                            temp = ["nfl", self.today, self.season, self.week, playerId,np.nan,np.nan,pos,team,0,0,0,0,0,0,0,
-                                    0,0,0,0,0,0,0,0,0,0,0,
-                                    FumblesLost,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,interceptions,safety,sacks,0,fum,0,
-                                    defTd, retTd,ptsAllowed,0,0,0,0,0,twoPt,fantasyPts,0]
-                            
-                            player_data.append(temp)
-                
-        df_nfl_proj = pd.DataFrame(player_data, columns=hf.projection_columns).replace("-",0)
+                                    
+                                
+                                temp = ["nfl", self.today, self.season, self.week, playerId,np.nan,np.nan,pos,team,0,0,0,0,0,0,0,
+                                        0,0,0,0,0,0,0,0,0,0,0,
+                                        FumblesLost,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,interceptions,safety,sacks,0,fum,0,
+                                        defTd, retTd,ptsAllowed,0,0,0,0,0,twoPt,fantasyPts,0]
+                                
+                                player_data.append(temp)
+                    
+            df_nfl_proj = pd.DataFrame(player_data, columns=hf.projection_columns).replace("-",0)
         
         if export:
-            filepath = str(hf.DATA_DIR) + "/projection/weekly/nfl_proj_{season}-{week}_{date}.csv".format(season=self.season, week=self.strWeek, date=self.today)
+            filepath = str(hf.DATA_DIR) + "/projection/nfl_proj_{season}-{week}_{date}.csv".format(season=self.season, week=self.strWeek, date=self.today)
             df_nfl_proj.to_csv(filepath, index=False)
 
         self.scraped_dfs['projections']['nfl'] = df_nfl_proj.copy()
@@ -1349,71 +1964,161 @@ class scrapers():
 
     def nfl_rankings(
         self,
+        inseason=False,
         export = True,
-        nfl_rank_url = {
-            "QB":"https://fantasy.nfl.com/research/rankings?leagueId=0&position=QB&sort=1&statType=weekStats&week={week}",     
-            "RB":"https://fantasy.nfl.com/research/rankings?leagueId=0&position=RB&sort=1&statType=weekStats&week={week}",
-            "WR":"https://fantasy.nfl.com/research/rankings?leagueId=0&position=WR&sort=1&statType=weekStats&week={week}",
-            "TE":"https://fantasy.nfl.com/research/rankings?leagueId=0&position=TE&sort=1&statType=weekStats&week={week}",
-            "K":"https://fantasy.nfl.com/research/rankings?leagueId=0&position=K&sort=1&statType=weekStats&week={week}",
-            "DST":"https://fantasy.nfl.com/research/rankings?leagueId=0&position=DEF&sort=1&statType=weekStats&week={week}"
-        },
         database_table = 'ranking'
     ):
         df_nfl_ranking = pd.DataFrame(columns=hf.ranking_columns)
 
-        for k,v in nfl_rank_url.items():
+        if inseason:
+            nfl_rank_url = self.scraping_urls['nfl']['inseason']['rankings']
+            for k,v in nfl_rank_url.items():
+                
+                time.sleep(1)
+                r = requests.get(nfl_rank_url[k].format(week=self.week))
+                soup = bs(r.text, features='lxml')
+
+                # grabs the number of players with projections on the site. pagenated at 25 a page
+                rank_table = soup.find("table", class_="tableType-player noGroups").find("tbody")
+
+                player_ranks = []
+                for tr in rank_table.find_all("tr"):
+                    player_data = []
+                    td = tr.find_all("td")
+
+                    pos_raw = td[0].text
+                    if pos_raw == '--':
+                        pos_raw = pos_raw.replace('--',0)
+                    pos_rank = int(pos_raw)
+                    playerId = int(td[1].find("a")['href'].split("=")[-1])
+                    full_name = td[1].find("a").text.replace(".", "")
+                    
+                    pos = td[1].find("em").text.split("-")[0].strip()
+                    
+                    if k == "DST":
+                        team = ""
+                        pos = "DST"
+                    
+                    else:
+                        # no team name for FAs
+                        try:
+                            team = td[1].find("em").text.split("-")[1].strip()
+                        except:
+                            team = "FA"
+                    
+                    ovr_rank = td[-1].text
+                    if ovr_rank == '--':
+                        ovr_rank = ovr_rank.replace('--','0')   
+                    ovr_rank = int(ovr_rank)
+
+                    player_data = ["nfl", self.today, self.season, self.week, k, "nfl", pos_rank, full_name, playerId, team, pos, np.nan, np.nan]
+                    player_ranks.append(player_data)
+
+                temp_df = pd.DataFrame(player_ranks, columns=hf.ranking_columns)
+                df_nfl_ranking = pd.concat([df_nfl_ranking, temp_df], axis = 0, ignore_index=True)
+        
+        # OFFSEASON
+        else:
+            nfl_rank_url = self.scraping_urls['nfl']['offseason']['rankings']
             
-            time.sleep(1)
-            r = requests.get(nfl_rank_url[k].format(week=self.week))
-            soup = bs(r.text)
+            for k,v in nfl_rank_url.items():
+    
+                time.sleep(1)
+                r = requests.get(nfl_rank_url[k].format(season=self.season))
+                soup = bs(r.text, features='lxml')
 
-            # grabs the number of players with projections on the site. pagenated at 25 a page
-            rank_table = soup.find("table", class_="tableType-player noGroups").find("tbody")
+                # grabs the number of players with projections on the site. pagenated at 25 a page
+                rank_table = soup.find("table", class_="tableType-player noGroups").find("tbody")
 
-            player_ranks = []
-            for tr in rank_table.find_all("tr"):
-                player_data = []
-                td = tr.find_all("td")
+                player_ranks = []
+                for tr in rank_table.find_all("tr"):
+                    player_data = []
+                    td = tr.find_all("td")
+                    
+                    pos_rank = int(td[0].text)
+                    playerId = int(td[1].find("a")['href'].split("=")[-1])
+                    full_name = td[1].find("a").text.replace(".", "")
+                    
+                    pos = td[1].find("em").text.split("-")[0].strip()
+                    
+                    if k == "DEF":
+                        team = ""
+                        
+                    
+                    else:
+                        # no team name for FAs
+                        try:
+                            team = td[1].find("em").text.split("-")[1].strip()
+                        except:
+                            team = "FA"
+                        
+                    ovr_rank = int(td[-1].text)
+                    
+                    player_data = ["nfl", self.today, self.season, self.week, k, "nfl", pos_rank, full_name, playerId, team, pos, np.nan, np.nan ]
+                    player_ranks.append(player_data)
 
-                pos_raw = td[0].text
-                if pos_raw == '--':
-                    pos_raw = pos_raw.replace('--',0)
-                pos_rank = int(pos_raw)
-                playerId = int(td[1].find("a")['href'].split("=")[-1])
-                full_name = td[1].find("a").text.replace(".", "")
-                
-                pos = td[1].find("em").text.split("-")[0].strip()
-                
-                if k == "DST":
-                    team = ""
-                    pos = "DST"
-                
-                else:
-                    # no team name for FAs
-                    try:
-                        team = td[1].find("em").text.split("-")[1].strip()
-                    except:
-                        team = "FA"
-                
-                ovr_rank = td[-1].text
-                if ovr_rank == '--':
-                    ovr_rank = ovr_rank.replace('--','0')   
-                ovr_rank = int(ovr_rank)
+                temp_df = pd.DataFrame(player_ranks, columns=hf.ranking_columns)
+                df_nfl_ranking = pd.concat([df_nfl_ranking, temp_df], axis = 0, ignore_index=True)
 
-                player_data = ["nfl", self.today, self.season, self.week, k, "nfl", pos_rank, full_name, playerId, team, pos, np.nan, np.nan]
-                player_ranks.append(player_data)
-
-            temp_df = pd.DataFrame(player_ranks, columns=hf.ranking_columns)
-            df_nfl_ranking = pd.concat([df_nfl_ranking, temp_df], axis = 0, ignore_index=True)
             
         if export:
-            filepath = str(hf.DATA_DIR) + "/ranking/weekly/nfl_rank_{season}-{week}_{date}.csv".format(season=self.season, week=self.strWeek, date=self.today)
+            filepath = str(hf.DATA_DIR) + "/ranking/nfl_rank_{season}-{week}_{date}.csv".format(season=self.season, week=self.strWeek, date=self.today)
             df_nfl_ranking.to_csv(filepath, index=False)
 
         self.scraped_dfs['rankings']['nfl'] = df_nfl_ranking.copy()
         return df_nfl_ranking.shape
 
+    # this isn't adp. its their draft rankings
+    def nfl_adp(
+        self,
+        export = True
+    ):
+        nfl_adp_url = self.scraping_urls['nfl']['offseason']['adp']
+        df_nfl_adp = pd.DataFrame(columns=hf.adp_columns)
+
+        # nfl draft 
+        offsets = [1, 101]
+        player_ranks = []    
+        
+        for i in offsets:
+            time.sleep(1)
+            r = requests.get(nfl_adp_url.format(offset=i))
+            soup = bs(r.text, features='lxml')
+
+            # grabs the number of players with projections on the site. pagenated at 25 a page
+            rank_table = soup.find("table", class_="tableType-player noGroups").find("tbody")
+
+            
+            for tr in rank_table.find_all("tr"):
+                player_data = []
+                td = tr.find_all("td")
+                
+                pos_rank = int(td[0].text)
+                playerId = int(td[1].find("a")['href'].split("=")[-1])
+                full_name = td[1].find("a").text.replace(".", "")
+                
+                pos = td[1].find("em").text.split("-")[0].strip()
+        
+                try:
+                    team = td[1].find("em").text.split("-")[1].strip()
+                except:
+                    team = "FA"
+                    
+                ovr_rank = int(td[-1].text)
+
+                player_data = ["nfl", self.today, playerId, full_name, np.nan, pos,team,pos_rank, np.nan, np.nan ]
+                player_ranks.append(player_data)
+
+        df_nfl_adp = pd.DataFrame(player_ranks, columns=hf.adp_columns)
+
+        df_nfl_adp  
+        if export:
+            filepath = str(hf.DATA_DIR) + "/adp/nfl_adp_{season}-{week}_{date}.csv".format(season=self.season, week=self.strWeek, date=self.today)
+            df_nfl_adp.to_csv(filepath, index=False)
+
+        self.scraped_dfs['adps']['nfl'] = df_nfl_adp.copy()
+        return df_nfl_adp.shape
+        
     # ====================
     #       bp
     # ====================
@@ -1452,7 +2157,7 @@ class scrapers():
                 time.sleep(1)
                 
                 html = driver.execute_script("return document.body.innerHTML")
-                soup = bs(html)
+                soup = bs(html, features='lxml')
 
                 data = soup.find_all("div", class_="flex odds-offer")
                 

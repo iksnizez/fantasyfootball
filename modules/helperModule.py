@@ -6,7 +6,11 @@ from sqlalchemy import create_engine
 from config import ESPN_COOKIES_SWID, ESPN_COOKIES_S2, PYMYSQL_NFL, BROWSER_DIR, ESPN_LEAGUE_ID, ESPN_HEADERS_NAME, ESPN_HEADERS, DATA_DIR
 
 
-folderpath_data = DATA_DIR        
+folderpath_data = DATA_DIR
+
+# =========================
+# ESPN FANTASY LEAGUE DATA
+# =========================
 league_id = ESPN_LEAGUE_ID
 league_cookies = {
     "SWID":ESPN_COOKIES_SWID,
@@ -33,6 +37,7 @@ espn_urls = {
     'base_boxscore_url':'https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons/{}/segments/0/leagues/245118?view=mBoxscore&scoringPeriodId={}'
 }
 
+# ======================================
 # column structures for stat projections
 projection_columns = ["outlet","date", "season", "week", "playerId", "name", "shortName", "pos", "team", 'GamesPlayed',
  'PassAttempts','PassCompletions','PassingYards', 'PassingYardsPerGame', 'TouchdownsPasses', 
@@ -48,11 +53,8 @@ projection_columns = ["outlet","date", "season", "week", "playerId", "name", "sh
  'ReturnTouchdowns','PointsAllowed','PointsAllowedPerGame','NetPassingYardsAllowed','RushingYardsAllowed', 
  'TotalYardsAllowed', 'YardsAgainstPerGame', 'twoPt','FantasyPoints','FantasyPointsPerGame'
  ]
-
 ranking_columns = ["outlet", "date", "season", "week", "group", "expert", "rank","name","playerId","team","pos", "high", "low"]
-
 adp_columns = ['outlet', 'date', 'playerId', 'name', 'shortName' , 'pos', 'team', 'adp', 'high', 'low']
-
 team_map = {
     "Jacksonville Jaguars":"JAX","Los Angeles Rams":"LA","Philadelphia Eagles":"PHI","Minnesota Vikings":"MIN",
     "Houston Texans":"HOU","Los Angeles Chargers":"LAC","Baltimore Ravens":"BAL","New England Patriots":"NE",
@@ -149,8 +151,10 @@ team_map_ids = {
     'SD': '0',
     'OAK': '0'
  }
-#############
+
+# ====================
 # general helper funcs
+# ====================
 def export_database(dataframe, database_table, connection_string=None):
 
     try:
@@ -203,7 +207,6 @@ def query_database(query, connection_string=None, params=None):
         message = 'query failed'
         print(message)
         return 
-
 
 def open_browser(browser_filepath = None, retry_delay = 5, retry_attempts = 3):
     

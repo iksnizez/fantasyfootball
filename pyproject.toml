@@ -3,5 +3,6 @@ name = "fantasyfootball"
 version = "0.1.0"
 requires-python = ">=3.13"
 dependencies = [
+    "html5lib>=1.1",
     "python-dotenv>=1.1.1",
 ]
