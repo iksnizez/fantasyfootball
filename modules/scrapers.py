@@ -158,6 +158,10 @@ class scrapers():
             }
         }
 
+        self.processed_dfs = {
+            'projections':None,
+            'rankings':None
+        }
  
     # ====================
     #       cbs
@@ -1071,7 +1075,6 @@ class scrapers():
                                     playerId = ""
                                     name = td.find("a", class_="AnchorLink link clr-link pointer").text.replace(" D/ST", "")
                                     
-                                
                                 position = td.find("span", class_="playerinfo__playerpos ttu").text.replace("/","").split(",")[0]
                                 team = td.find("span", class_="playerinfo__playerteam").text.upper()
 
@@ -1186,12 +1189,11 @@ class scrapers():
                                 
                                 try:
                                     int(playerId)
-                                    name = td.find("a", class_="AnchorLink link clr-link pointer").text.replace(".", "")
+                                    name = td.find("a", class_="AnchorLink link clr-link pointer").text.replace({".":"", " D/ST":""})
                                 except:
                                     playerId = ""
                                     name = td.find("a", class_="AnchorLink link clr-link pointer").text.replace(" D/ST", "")
                                  
-
                                 position = td.find("span", class_="playerinfo__playerpos ttu").text
                                 team = td.find("span", class_="playerinfo__playerteam").text
 
@@ -2337,7 +2339,7 @@ class scrapers():
         s = pd.Series(dbPlayers.playerId.values, index=dbPlayers.espnId)
         self.playerLookupEspn = s[s.index.notna()].to_dict()
 
-        s = pd.Series(dbPlayers.espnId.values, index=dbPlayers.name)
+        s = pd.Series(dbPlayers.espnId.values, index=dbPlayers.espnName)
         self.playerLookupEspnName = s[s.index.notna()].to_dict()
 
         s = pd.Series(dbPlayers.playerId.values, index=dbPlayers.fpId)
@@ -2421,6 +2423,13 @@ class scrapers():
                 temp['date'] = pd.to_datetime(temp['date'])
                 # playerId will be regenerated below to the db pid. keeping source id for missing player info
                 temp = temp.rename(columns={'playerId':'sourceId'})
+                # drop rows where ANY of those columns contain alphabetic characters
+                temp['sourceId'] = (
+                    temp['sourceId']
+                    .apply(pd.to_numeric, errors='coerce')  # non-numeric -> NaN
+                    .astype('Int64')                        # nullable int dtype, keeps NaN
+                )
+                
 
                 # updtaing outlet specific playerIds to database IDs
                 if 'cbs_' in f:
@@ -2454,10 +2463,15 @@ class scrapers():
                 ####################################
 
                 # updating outlet name to db outlet id 
-                temp['outlet'] = temp['outlet'].replace(self.outletLookup)
+                temp['outletId'] = temp['outlet'].replace(self.outletLookup)
 
                 #updating expert name to db expert id
-                temp['expert'] = temp['expert'].replace(self.expertLookup)
+                temp['analystId'] = temp['expert'].replace(self.expertLookup)
+
+                temp = temp.rename(columns={
+                    'group':'rankGroup',
+                    'rank':'ranking'
+                })
 
                 temp = temp[hf.rankingCols]
                 # adding outlet dataframe to the upload dataframe
@@ -2466,9 +2480,24 @@ class scrapers():
                         
             df_load_rank = df_load_rank.replace(np.nan, None)
             # removing unranked players and rankings that have been loaded already
-            df_load_rank = df_load_rank.loc[pd.notnull(df_load_rank['rank'])]
+            df_load_rank = df_load_rank.loc[pd.notnull(df_load_rank['ranking'])]
             df_load_rank['date'] = pd.to_datetime(df_load_rank['date'])
             #df_load_rank = df_load_rank.loc[df_load_rank['date'] >= pd.to_datetime(self.today)]
+            df_load_rank = df_load_rank[df_load_rank['analystId']!='AVG']
+            df_load_rank['analystId'] = df_load_rank['analystId'].astype(int)
+
+            # drop duplicate rows of the PKs
+            subset_cols = [
+                'outletId',
+                'date',
+                'season',
+                'week',
+                'rankGroup',
+                'analystId',
+                'playerId'
+            ]
+
+            df_load_rank = df_load_rank.drop_duplicates(subset=subset_cols, keep='first')
 
         except Exception as ex:
             print(ex)
@@ -2479,8 +2508,11 @@ class scrapers():
             df_missing_players_rank.to_csv(str(hf.DATA_DIR) + '/missingPlayersRank.csv')
             print(df_missing_players_rank.shape[0], 'missing players..')
             hf.add_new_players_to_db(df_missing_players_rank)
+        else:
+            print('no missing players')
         
-        return df_load_rank
+        self.processed_dfs['rankings'] = df_load_rank.copy()
+        return 
     
     #TODO add pulling from the class object if the df is populated
     def process_projections(self):
@@ -2505,12 +2537,20 @@ class scrapers():
                     temp = pd.read_csv(f)
                 else:
                     temp = pd.read_excel(
-                        f, 
-                        parse_dates=['date'], 
+                        f 
                     )
                 temp['date'] = pd.to_datetime(temp['date'])
                 # playerId will be regenerated below to the db pid. keeping source id for missing player info
-                temp = temp.rename(columns={'playerId':'sourceId'})
+                temp = temp.rename(columns={
+                    'playerId':'sourceId'
+                })
+            
+                # drop rows where ANY of those columns contain alphabetic characters
+                temp['sourceId'] = (
+                    temp['sourceId']
+                    .apply(pd.to_numeric, errors='coerce')  # non-numeric -> NaN
+                    .astype('Int64')                        # nullable int dtype, keeps NaN
+                )
 
                 # creating dicts to convert outlet.team, player) name/id to db id
                 if 'cbs' in f:
@@ -2532,8 +2572,10 @@ class scrapers():
                     # dict name:pid
                     lookup = self.playerLookupEspnName
                     # updating the nfl source data full team name to the abbreviated db name
-                    temp.loc[temp['sourceId'].isna(), 'sourceId'] = temp.loc[temp['sourceId'].isna(), 'team'].map(lookup)
-                    temp['name'] = temp['name'].replace(' D/ST', '')
+                    temp['name'] = temp['name'].str.extract(r'^(\S+)')
+                    temp['name'] = temp['name'].str.strip()
+                    temp.loc[temp['sourceId'].isnull(), 'sourceId'] = temp.loc[temp['sourceId'].isnull(), 'name'].map(lookup)
+                    
                     # dict espnId:pid
                     lookup = self.playerLookupEspn
 
@@ -2565,12 +2607,9 @@ class scrapers():
                 # updating outlet name to db outlet id 
                 temp['outlet'] = temp['outlet'].replace(self.outletLookup)
 
-                temp = temp[hf.projectionCols].replace({"-": None, "—": None})
-
+                temp = temp[hf.projection_filter_cols]
+                temp = temp.rename(columns=hf.map_projInput_to_projOut)
                 df_load_proj = pd.concat([df_load_proj, temp])
-
-            df_load_proj = df_load_proj.replace(np.nan, None)
-
             
         except Exception as ex:
             print(ex)
@@ -2581,6 +2620,23 @@ class scrapers():
             df_missing_players_proj.to_csv(str(hf.DATA_DIR) + '/missingPlayersProj.csv')
             print(df_missing_players_proj.shape[0], 'missing players..')
             hf.add_new_players_to_db(df_missing_players_proj)
+        else:
+            print('no missing players')
 
+        # helps catch random text sites use instead of null or zero. encoding issues are causing replace to not work
+        to_deci = [
+            'gp','att', 'comp', 'passYd', 'passYdPg', 'passTd', 'pInt', 'passRtg', 'rush', 'rushYd', 'ydPerRush', 'rushTd', 'target', 'rec', 'recYd', 'recYdPg', 'ydPerRec', 'recTd', 'fmb', 'fgM', 'fgA', 'fgLong', 'fgM0119', 'fgA0119', 'fgM2029', 'fgA2029', 'fgM3039', 'fgA3039', 'fgM4049', 'fgA4049', 'fgM5099', 'fgA5099', 'xpM', 'xpA', 'defInt', 'sfty', 'sack', 'tckl', 'defFmbRec', 'defFmbFor', 'defTd', 'retTd', 'ptsAllowed', 'ptsAllowedPg', 'pYdAllowedPg', 'rYdAllowedPg', 'totalYdAllowed', 'totalYdAllowedPg', 'twoPt', 'fantasyPoints', 'fantasyPointsPg'
+        ]
+        df_load_proj[to_deci] = df_load_proj[to_deci].apply(
+            lambda col: pd.to_numeric(col, errors='coerce')
+        )
+
+        #drop duplicates of PKs
+        subset_cols = [
+            'playerId', 'date', 'season', 'week', 'outletId'
+        ]
+        df_load_proj = df_load_proj.drop_duplicates(subset=subset_cols, keep='first')
+
+        self.processed_dfs['projections'] = df_load_proj.copy()
         return 
     

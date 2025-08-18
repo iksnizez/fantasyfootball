@@ -56,6 +56,65 @@ projection_columns = [
     'TotalYardsAllowed', 'YardsAgainstPerGame', 'twoPt','FantasyPoints','FantasyPointsPerGame'
 ]
 
+projection_filter_cols = [
+    'playerId',
+    'date',
+    'season',
+    'week',
+    'outlet',
+    'GamesPlayed',
+    'PassAttempts',
+    'PassCompletions',
+    'PassingYards',
+    'PassingYardsPerGame',
+    'TouchdownsPasses',
+    'InterceptionsThrown',
+    'PasserRating',
+    'RushingAttempts',
+    'RushingYards',
+    'AverageYardsPerRush',
+    'RushingTouchdowns',
+    'Targets',
+    'Receptions',
+    'ReceivingYards',
+    'YardsPerGame',
+    'AverageYardsPerReception',
+    'ReceivingTouchdowns',
+    'FumblesLost',
+    'FieldGoalsMade',
+    'FieldGoalAttempts',
+    'LongestFieldGoal',
+    'FieldGoals119Yards',
+    'FieldGoals119YardAttempts',
+    'FieldGoals2029Yards',
+    'FieldGoals2029YardAttempts',
+    'FieldGoals3039Yards',
+    'FieldGoals3039YardAttempts',
+    'FieldGoals4049Yards',
+    'FieldGoals4049YardAttempts',
+    'FieldGoals50Yards',
+    'FieldGoals50YardsAttempts',
+    'ExtraPointsMade',
+    'ExtraPointsAttempted',
+    'Interceptions',
+    'Safeties',
+    'Sacks',
+    'Tackles',
+    'DefensiveFumblesRecovered',
+    'ForcedFumbles',
+    'DefensiveTouchdowns',
+    'ReturnTouchdowns',
+    'PointsAllowed',
+    'PointsAllowedPerGame',
+    'NetPassingYardsAllowed',
+    'RushingYardsAllowed',
+    'TotalYardsAllowed',
+    'YardsAgainstPerGame',
+    'twoPt',
+    'FantasyPoints',
+    'FantasyPointsPerGame'
+]
+
 ranking_columns = [
     "outlet", "date", "season", "week", "group", "expert", "rank","name","playerId","team","pos", "high", "low"
 ]
@@ -73,21 +132,77 @@ bettingCols = [
 ]
 
 rankingCols = [
-    'outlet','date','season','week','group','expert','rank','high','low','playerId'
+    'outletId','date','season','week','rankGroup','analystId','ranking','high','low','playerId'
  ]
 
 projectionCols = [
-    "playerId", "date", "season", "week", "outlet",'GamesPlayed',
-    'PassAttempts','PassCompletions','PassingYards', 'PassingYardsPerGame', 'TouchdownsPasses', 
-    'InterceptionsThrown', 'PasserRating','RushingAttempts','RushingYards', 'AverageYardsPerRush', 'RushingTouchdowns',
-    'Targets', 'Receptions', 'ReceivingYards', 'YardsPerGame', 'AverageYardsPerReception','ReceivingTouchdowns',
-    'FumblesLost','FieldGoalsMade','FieldGoalAttempts','LongestFieldGoal','FieldGoals119Yards','FieldGoals119YardAttempts',
-    'FieldGoals2029Yards','FieldGoals2029YardAttempts','FieldGoals3039Yards','FieldGoals3039YardAttempts',
-    'FieldGoals4049Yards','FieldGoals4049YardAttempts','FieldGoals50Yards','FieldGoals50YardsAttempts',
-    'ExtraPointsMade','ExtraPointsAttempted','Interceptions','Safeties','Sacks','Tackles','DefensiveFumblesRecovered',
-    'ForcedFumbles','DefensiveTouchdowns', 'ReturnTouchdowns','PointsAllowed','PointsAllowedPerGame','NetPassingYardsAllowed',
-    'RushingYardsAllowed','TotalYardsAllowed', 'YardsAgainstPerGame', 'twoPt', 'FantasyPoints','FantasyPointsPerGame'
+    'playerId', 'date', 'season', 'week', 'outletId', 'gp', 'att', 'comp', 'passYd', 'passYdPg', 
+    'passTd', 'pInt', 'passRtg', 'rush', 'rushYd', 'ydPerRush', 'rushTd', 'target', 'rec', 'recYd', 
+    'recYdPg', 'ydPerRec', 'recTd', 'fmb', 'fgM', 'fgA', 'fgLong', 'fgM0119', 'fgA0119', 'fgM2029', 
+    'fgA2029', 'fgM3039', 'fgA3039', 'fgM4049', 'fgA4049', 'fgM5099', 'fgA5099', 'xpM', 'xpA', 
+    'defInt', 'sfty', 'sack', 'tckl', 'defFmbRec', 'defFmbFor', 'defTd', 'retTd', 'ptsAllowed', 
+    'ptsAllowedPg', 'pYdAllowedPg', 'rYdAllowedPg', 'totalYdAllowed', 'totalYdAllowedPg', 'twoPt', 
+    'fantasyPoints', 'fantasyPointsPg'
 ]
+
+map_projInput_to_projOut = {
+    'playerId':'playerId',
+    'date':'date',
+    'season':'season',
+    'week':'week',
+    'outlet':'outletId',
+    'GamesPlayed':'gp',
+    'PassAttempts':'att',
+    'PassCompletions':'comp',
+    'PassingYards':'passYd',
+    'PassingYardsPerGame':'passYdPg',
+    'TouchdownsPasses':'passTd',
+    'InterceptionsThrown':'pInt',
+    'PasserRating':'passRtg',
+    'RushingAttempts':'rush',
+    'RushingYards':'rushYd',
+    'AverageYardsPerRush':'ydPerRush',
+    'RushingTouchdowns':'rushTd',
+    'Targets':'target',
+    'Receptions':'rec',
+    'ReceivingYards':'recYd',
+    'YardsPerGame':'recYdPg',
+    'AverageYardsPerReception':'ydPerRec',
+    'ReceivingTouchdowns':'recTd',
+    'FumblesLost':'fmb',
+    'FieldGoalsMade':'fgM',
+    'FieldGoalAttempts':'fgA',
+    'LongestFieldGoal':'fgLong',
+    'FieldGoals119Yards':'fgM0119',
+    'FieldGoals119YardAttempts':'fgA0119',
+    'FieldGoals2029Yards':'fgM2029',
+    'FieldGoals2029YardAttempts':'fgA2029',
+    'FieldGoals3039Yards':'fgM3039',
+    'FieldGoals3039YardAttempts':'fgA3039',
+    'FieldGoals4049Yards':'fgM4049',
+    'FieldGoals4049YardAttempts':'fgA4049',
+    'FieldGoals50Yards':'fgM5099',
+    'FieldGoals50YardsAttempts':'fgA5099',
+    'ExtraPointsMade':'xpM',
+    'ExtraPointsAttempted':'xpA',
+    'Interceptions':'defInt',
+    'Safeties':'sfty',
+    'Sacks':'sack',
+    'Tackles':'tckl',
+    'DefensiveFumblesRecovered':'defFmbRec',
+    'ForcedFumbles':'defFmbFor',
+    'DefensiveTouchdowns':'defTd',
+    'ReturnTouchdowns':'retTd',
+    'PointsAllowed':'ptsAllowed',
+    'PointsAllowedPerGame':'ptsAllowedPg',
+    'NetPassingYardsAllowed':'pYdAllowedPg',
+    'RushingYardsAllowed':'rYdAllowedPg',
+    'TotalYardsAllowed':'totalYdAllowed',
+    'YardsAgainstPerGame':'totalYdAllowedPg',
+    'twoPt':'twoPt',
+    'FantasyPoints':'fantasyPoints',
+    'FantasyPointsPerGame':'fantasyPointsPg'
+}
 
 # ======================================
 # team naming maps
@@ -399,6 +514,11 @@ def add_new_players_to_db(df_missing_players):
     ]
     df_missing_players = df_missing_players[cols_keep]
     df_missing_players['joinName'] = df_missing_players['name'].str.lower().apply(apply_regex_replacements)
+    # drop rows where sourceId contains alphabetic characters then force to int to match db type
+    mask = df_missing_players['sourceId'].astype(str).str.contains(r'[A-Za-z]', na=False)
+    df_missing_players = df_missing_players[~mask]
+    df_missing_players['sourceId'] = df_missing_players['sourceId'].astype(float).astype(int)
+    # will be used to loop thru db updates
     missing_outlets = df_missing_players['outlet'].unique()
 
     # ====================
@@ -409,13 +529,13 @@ def add_new_players_to_db(df_missing_players):
         inserts = df_missing_players[
             (~df_missing_players['joinName'].isin(players_in_db))
         ]
-
+        
         inserts.loc[:,'outlet'] = inserts['outlet'].replace('fantasyPros', 'fp')
         inserts = inserts.drop_duplicates(subset=['name', 'outlet'])
 
         # making single records f   or each player with all the ids
         inserts = (
-            inserts.pivot(index='name', columns='outlet', values='sourceId')
+            inserts.pivot(index='joinName', columns='outlet', values='sourceId')
             .add_suffix('Id')        # add "Id" to each outlet column
             .reset_index()           # bring 'name' back as a column
         )
@@ -443,9 +563,11 @@ def add_new_players_to_db(df_missing_players):
         # python or pandas is converting some to float so making sure the ids are ints
         cols_to_int = [i for i in inserts.columns if 'id' in i.lower()]
         # drop rows where ANY of those columns contain alphabetic characters
-        mask = inserts[cols_to_int].apply(lambda col: col.astype(str).str.contains(r'[A-Za-z]', na=False))
-        inserts = inserts[~mask.any(axis=1)]
-        inserts[cols_to_int] = inserts[cols_to_int].astype(float).astype(int)
+        inserts[cols_to_int] = (
+            inserts[cols_to_int]
+            .apply(pd.to_numeric, errors='coerce')  # non-numeric -> NaN
+            .astype('Int64')                        # nullable int dtype, keeps NaN
+        )
 
         if inserts.shape[0] == 0: pass
         else:
@@ -478,7 +600,7 @@ def add_new_players_to_db(df_missing_players):
                 ]
                 #.loc[:, ~df_edit.columns.isin(['posId', 'teamId', 'joinName'])]
             )
-            if i == 'fantasypros':
+            if i == 'fantasyPros':
                 updates.loc[:,'outlet'] = updates['outlet'].replace('fantasyPros', 'fp')
 
             updates = updates.copy()
