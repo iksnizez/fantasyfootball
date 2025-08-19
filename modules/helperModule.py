@@ -1,4 +1,4 @@
-import re
+import re, json
 import pandas as pd
 from nfl_data_py import import_ids
 from selenium import webdriver
@@ -8,6 +8,8 @@ from config import ESPN_COOKIES_SWID, ESPN_COOKIES_S2, PYMYSQL_NFL, BROWSER_DIR,
 
 
 folderpath_data = DATA_DIR
+with open(str(folderpath_data) + '/json/mapping_dicts.json', 'r', encoding='utf-8') as f:
+    lookups = json.load(f)
 
 # =========================
 # ESPN FANTASY LEAGUE DATA
@@ -20,23 +22,9 @@ league_cookies = {
 league_headers = {
     ESPN_HEADERS_NAME: ESPN_HEADERS
 }
-map_team_ids_to_name =  {
-    1: 'John', 2: 'Gomer', 3: 'Pope', 4: "Jamie", 
-    5: "Geik", 6: "Bryan", 7: "Chaunce", 8: "Sam", 
-    9: "Chris", 10: "Murphy", 11: "Colin", 12: 'Ethan'
-}
-lineupSlotID = {
-    17: 'K', 0: 'QB', 20: 'bench', 15: 'DP', 6: 'TE', 
-    23: 'FLEX', 4: 'WR', 2: 'RB', 21: 'IR'
-}
-espn_urls = {
-    'league_history':'https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons/{}/segments/0/leagues/{}?view=mLiveScoring&view=mMatchupScore&view=mRoster&view=mSettings&view=mStandings&view=mStatus&view=mTeam&view=modular&view=mNav',
-    'player_info':'https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons/{}/segments/0/leagues/{}?scoringPeriodId=19&view=kona_player_info',
-    'draft_results':'https://fantasy.espn.com/football/league/draftrecap?leagueId={lid}&seasonId={sid}',
-    'base_player_url':'https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons/{}/segments/0/leagues/245118?view=kona_player_info&scoringPeriodId={}',
-    'base_league_url':'https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons/{}/segments/0/leagues/245118?view=mLiveScoring&view=mMatchupScore&view=mPositionalRatings&view=mTeam&view=modular&view=mNav&view=mMatchupScore&scoringPeriodId={}',
-    'base_boxscore_url':'https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons/{}/segments/0/leagues/245118?view=mBoxscore&scoringPeriodId={}'
-}
+map_team_ids_to_name =  lookups['map_team_ids_to_name']
+lineupSlotID = lookups['lineupSlotID']
+espn_urls = lookups['espn_urls']
 
 # ======================================
 # columns for scraped raw data
@@ -145,243 +133,21 @@ projectionCols = [
     'fantasyPoints', 'fantasyPointsPg'
 ]
 
-map_projInput_to_projOut = {
-    'playerId':'playerId',
-    'date':'date',
-    'season':'season',
-    'week':'week',
-    'outlet':'outletId',
-    'GamesPlayed':'gp',
-    'PassAttempts':'att',
-    'PassCompletions':'comp',
-    'PassingYards':'passYd',
-    'PassingYardsPerGame':'passYdPg',
-    'TouchdownsPasses':'passTd',
-    'InterceptionsThrown':'pInt',
-    'PasserRating':'passRtg',
-    'RushingAttempts':'rush',
-    'RushingYards':'rushYd',
-    'AverageYardsPerRush':'ydPerRush',
-    'RushingTouchdowns':'rushTd',
-    'Targets':'target',
-    'Receptions':'rec',
-    'ReceivingYards':'recYd',
-    'YardsPerGame':'recYdPg',
-    'AverageYardsPerReception':'ydPerRec',
-    'ReceivingTouchdowns':'recTd',
-    'FumblesLost':'fmb',
-    'FieldGoalsMade':'fgM',
-    'FieldGoalAttempts':'fgA',
-    'LongestFieldGoal':'fgLong',
-    'FieldGoals119Yards':'fgM0119',
-    'FieldGoals119YardAttempts':'fgA0119',
-    'FieldGoals2029Yards':'fgM2029',
-    'FieldGoals2029YardAttempts':'fgA2029',
-    'FieldGoals3039Yards':'fgM3039',
-    'FieldGoals3039YardAttempts':'fgA3039',
-    'FieldGoals4049Yards':'fgM4049',
-    'FieldGoals4049YardAttempts':'fgA4049',
-    'FieldGoals50Yards':'fgM5099',
-    'FieldGoals50YardsAttempts':'fgA5099',
-    'ExtraPointsMade':'xpM',
-    'ExtraPointsAttempted':'xpA',
-    'Interceptions':'defInt',
-    'Safeties':'sfty',
-    'Sacks':'sack',
-    'Tackles':'tckl',
-    'DefensiveFumblesRecovered':'defFmbRec',
-    'ForcedFumbles':'defFmbFor',
-    'DefensiveTouchdowns':'defTd',
-    'ReturnTouchdowns':'retTd',
-    'PointsAllowed':'ptsAllowed',
-    'PointsAllowedPerGame':'ptsAllowedPg',
-    'NetPassingYardsAllowed':'pYdAllowedPg',
-    'RushingYardsAllowed':'rYdAllowedPg',
-    'TotalYardsAllowed':'totalYdAllowed',
-    'YardsAgainstPerGame':'totalYdAllowedPg',
-    'twoPt':'twoPt',
-    'FantasyPoints':'fantasyPoints',
-    'FantasyPointsPerGame':'fantasyPointsPg'
-}
+map_projInput_to_projOut = lookups['map_projInput_to_projOut']
 
+adpCols = [
+    'outletId', 'date', 'playerId', 'adp', 'high', 
+]
 # ======================================
 # team naming maps
-team_map = {
-    "Jacksonville Jaguars":"JAX","Los Angeles Rams":"LA","Philadelphia Eagles":"PHI","Minnesota Vikings":"MIN",
-    "Houston Texans":"HOU","Los Angeles Chargers":"LAC","Baltimore Ravens":"BAL","New England Patriots":"NE",
-    "Carolina Panthers":"CAR","Denver Broncos":"DEN","Arizona Cardinals":"ARI","New Orleans Saints":"NO",
-    "Detroit Lions":"DET","Pittsburgh Steelers":"PIT","Chicago Bears":"CHI","Seattle Seahawks":"SEA",
-    "Buffalo Bills":"BUF","Tennessee Titans":"TEN","Atlanta Falcons":"ATL","Cincinnati Bengals":"CIN",
-    "Kansas City Chiefs":"KC","Washington Redskins":"WAS","Dallas Cowboys":"DAL","Tampa Bay Buccaneers":"TB",
-    "Green Bay Packers":"GB","New York Giants":"NYG","San Francisco 49ers":"SF","Cleveland Browns":"CLE",
-    "Oakland Raiders":"OAK","Indianapolis Colts":"IND","Miami Dolphins":"MIA","New York Jets":"NYJ"
-}
-team_mascot_map = {
-    "Jaguars":"JAX","Rams":"LA","Eagles":"PHI","Vikings":"MIN",
-    "Texans":"HOU","Chargers":"LAC","Ravens":"BAL","Patriots":"NE",
-    "Panthers":"CAR","Broncos":"DEN","Cardinals":"ARI","Saints":"NO",
-    "Lions":"DET","Steelers":"PIT","Bears":"CHI","Seahawks":"SEA",
-    "Bills":"BUF","Titans":"TEN","Falcons":"ATL","Bengals":"CIN",
-    "Chiefs":"KC","Redskins":"WAS","Cowboys":"DAL","Buccaneers":"TB",
-    "Packers":"GB","Giants":"NYG","49ers":"SF","Browns":"CLE",
-    "Raiders":"OAK","Colts":"IND","Dolphins":"MIA","Jets":"NYJ"
-}
-team_map_abbrevs = {
-    'ATL': 'ATL',
-    'BUF': 'BUF',
-    'CHI': 'CHI',
-    'CIN': 'CIN',
-    'CLE': 'CLE',
-    'DAL': 'DAL',
-    'DEN': 'DEN',
-    'DET': 'DET',
-    'GB': 'GB',
-    'TEN': 'TEN',
-    'IND': 'IND',
-    'KC': 'KC',
-    'LV': 'LV',
-    'LAR': 'LA',
-    'MIA': 'MIA',
-    'MIN': 'MIN',
-    'NE': 'NE',
-    'NO': 'NO',
-    'NYG': 'NYG',
-    'NYJ': 'NYJ',
-    'PHI': 'PHI',
-    'ARI': 'ARI',
-    'PIT': 'PIT',
-    'LAC': 'LAC',
-    'SF': 'SF',
-    'SEA': 'SEA',
-    'TB': 'TB',
-    'WSH': 'WAS',
-    'CAR': 'CAR',
-    'JAX': 'JAX',
-    'BAL': 'BAL',
-    'HOU': 'HOU',
-    'FA': 'FA',
-    'STL': 'SL',
-    'SD': 'SD',
-    'OAK': 'OAK'
- }
-team_map_ids = {
-    'ATL': '3800',
-    'BUF': '0610',
-    'CHI': '0810',
-    'CIN': '0920',
-    'CLE': '1050',
-    'DAL': '1200',
-    'DEN': '1400',
-    'DET': '1540',
-    'GB': '1800',
-    'TEN': '2100',
-    'IND': '2200',
-    'KC': '2310',
-    'LV': '2520',
-    'LAR': '2510',
-    'MIA': '2700',
-    'MIN': '3000',
-    'NE': '3200',
-    'NO': '3300',
-    'NYG': '3410',
-    'NYJ': '3430',
-    'PHI': '3700',
-    'ARI': '3800',
-    'PIT': '3900',
-    'LAC': '4400',
-    'SF': '4500',
-    'SEA': '4600',
-    'TB': '4900',
-    'WSH': '5110',
-    'CAR': '0750',
-    'JAX': '2250',
-    'BAL': '0325',
-    'HOU': '2120',
-    'FA': '0',
-    'STL': '0',
-    'SD': '0',
-    'OAK': '0'
- }
-team_map_nfldatapy_to_db = {
-    'ARI':'ARI',
-    'ATL':'ATL',
-    'BAL':'BAL',
-    'BUF':'BUF',
-    'CAR':'CAR',
-    'CHI':'CHI',
-    'CIN':'CIN',
-    'CLE':'CLE',
-    'DAL':'DAL',
-    'DEN':'DEN',
-    'DET':'DET',
-    'FA':'FA',
-    'FA*':'FA',
-    'GBP':'GB',
-    'HOU':'HOU',
-    'IND':'IND',
-    'JAC':'JAX',
-    'KCC':'KC',
-    'LAC':'LAC',
-    'LAR':'LAR',
-    'LVR':'LV',
-    'MIA':'MIA',
-    'MIN':'MIN',
-    'NEP':'NE',
-    'NOS':'NO',
-    'NYG':'NYG',
-    'NYJ':'NYJ',
-    'OAK':'OAK',
-    'PHI':'PHI',
-    'PIT':'PIT',
-    'RAM':'LAR',
-    'SDC':'SD',
-    'SEA':'SEA',
-    'SFO':'SF',
-    'STL':'STL',
-    'TBB':'TB',
-    'TEN':'TEN',
-    'WAS':'WSH'
-}
-team_map_nfldatapy_to_dbTid = {
-    'ARI':22,
-    'ATL':1,
-    'BAL':31,
-    'BUF':2,
-    'CAR':29,
-    'CHI':3,
-    'CIN':4,
-    'CLE':5,
-    'DAL':6,
-    'DEN':7,
-    'DET':8,
-    'FA':33,
-    'FA*':33,
-    'GBP':9,
-    'HOU':32,
-    'IND':11,
-    'JAC':30,
-    'KCC':12,
-    'LAC':24,
-    'LAR':14,
-    'LVR':13,
-    'MIA':15,
-    'MIN':16,
-    'NEP':17,
-    'NOS':18,
-    'NYG':19,
-    'NYJ':20,
-    'OAK':36,
-    'PHI':21,
-    'PIT':23,
-    'RAM':14,
-    'SDC':35,
-    'SEA':26,
-    'SFO':25,
-    'STL':34,
-    'TBB':27,
-    'TEN':10,
-    'WAS':28
-}
+team_map = lookups['team_map']
+team_mascot_map = lookups['team_mascot_map']
+team_map_abbrevs = lookups['team_map_abbrevs']
+team_map_ids = lookups['team_map_ids']
+team_map_nfldatapy_to_db = lookups['team_map_nfldatapy_to_db']
+team_map_nfldatapy_to_dbTid = lookups['team_map_nfldatapy_to_dbTid']
+
+del lookups
 # ====================
 # general helper funcs
 # ====================

@@ -160,7 +160,9 @@ class scrapers():
 
         self.processed_dfs = {
             'projections':None,
-            'rankings':None
+            'rankings':None,
+            'adps':None,
+            'lines':None
         }
  
     # ====================
@@ -2138,8 +2140,7 @@ class scrapers():
             r'https://www.bettingpros.com/nfl/odds/spread',#/?season={season}&week={week}',
             r'https://www.bettingpros.com/nfl/odds/moneyline',#/?season={season}&week={week}",
             r'https://www.bettingpros.com/nfl/odds/total'#/?season={season}&week={week}"
-        ],
-        database_table = 'betting'
+        ]
     ):
 
         driver = hf.open_browser()
@@ -2358,10 +2359,7 @@ class scrapers():
 
         return
 
-    def process_game_lines(
-        self,
-        bettingTableName = 'betting'
-    ):
+    def process_game_lines(self):
 
         # check there was a scrape, if not hit the data folder and load all files in there
         if self.scraped_dfs['lines']['bp'] == None:
@@ -2384,18 +2382,12 @@ class scrapers():
             # convert bp team ids to database teamids
             df_lines['awayTeamId'] = df_lines['awayTeamId'].map(self.teamLookupBp)
             df_lines['homeTeamId'] = df_lines['homeTeamId'].map(self.teamLookupBp)
-            
-            # throw it in the db
-            hf.export_database(
-                dataframe=df_lines, 
-                database_table=bettingTableName, 
-                connection_string=None
-            )
 
             print("success")
         except Exception as ex:
             print(ex)
 
+        self.processed_dfs['lines'] = df_lines
         return
     
     #TODO add pulling from the class object if the df is populated
@@ -2505,7 +2497,7 @@ class scrapers():
 
         if df_missing_players_rank.shape[0] > 0:
             df_missing_players_rank = df_missing_players_rank.drop_duplicates(subset=['outlet', 'sourceId', 'name'], keep='first')
-            df_missing_players_rank.to_csv(str(hf.DATA_DIR) + '/missingPlayersRank.csv')
+            df_missing_players_rank.to_csv(str(hf.DATA_DIR) + '/missing players/missingPlayersRank.csv')
             print(df_missing_players_rank.shape[0], 'missing players..')
             hf.add_new_players_to_db(df_missing_players_rank)
         else:
@@ -2572,8 +2564,8 @@ class scrapers():
                     # dict name:pid
                     lookup = self.playerLookupEspnName
                     # updating the nfl source data full team name to the abbreviated db name
-                    temp['name'] = temp['name'].str.extract(r'^(\S+)')
-                    temp['name'] = temp['name'].str.strip()
+                    temp.loc[temp['sourceId'].isnull(),'name'] = temp.loc[temp['sourceId'].isnull(),'name'].str.extract(r'^(\S+)')
+                    temp.loc[temp['sourceId'].isnull(),'name'] = temp.loc[temp['sourceId'].isnull(),'name'].str.strip()
                     temp.loc[temp['sourceId'].isnull(), 'sourceId'] = temp.loc[temp['sourceId'].isnull(), 'name'].map(lookup)
                     
                     # dict espnId:pid
@@ -2617,7 +2609,7 @@ class scrapers():
             
         if df_missing_players_proj.shape[0] > 0:
             df_missing_players_proj = df_missing_players_proj.drop_duplicates(subset=['outlet', 'sourceId', 'name'], keep='first')
-            df_missing_players_proj.to_csv(str(hf.DATA_DIR) + '/missingPlayersProj.csv')
+            df_missing_players_proj.to_csv(str(hf.DATA_DIR) + '/missing players/missingPlayersProj.csv')
             print(df_missing_players_proj.shape[0], 'missing players..')
             hf.add_new_players_to_db(df_missing_players_proj)
         else:
@@ -2640,3 +2632,126 @@ class scrapers():
         self.processed_dfs['projections'] = df_load_proj.copy()
         return 
     
+    def process_adps(self):
+
+        try:
+            #main df to hold all data
+            df_load_adp = pd.DataFrame(columns = [
+                    'outletId','date','playerId','adp','high','low'
+                ])  
+
+            # df to hold players that are not in the database for a source yet
+            df_missing_players_adp = pd.DataFrame(columns=['date', 'outlet', 'playerId', 'sourceId', 'name'])
+
+            
+            # combining all outlets rankings to a single dataframe and converting names to the database Ids
+            directory = str(hf.DATA_DIR) + '/adp/'
+            #looping through every rank file to aggregate into single df
+            for filename in os.listdir(directory):
+                print(filename)
+                f = os.path.join(directory,filename)
+                # checking if it is a file
+                if os.path.isfile(f) and f.endswith('.csv'):
+                    temp = pd.read_csv(f)
+                elif f.endswith('.xlsx'):
+                    temp = pd.read_excel(f)
+                else:
+                    continue
+
+                temp['date'] = pd.to_datetime(temp['date'])
+                # playerId will be regenerated below to the db pid. keeping source id for missing player info
+                temp = temp.rename(columns={'playerId':'sourceId'})
+                # drop rows where ANY of those columns contain alphabetic characters
+                temp['sourceId'] = (
+                    temp['sourceId']
+                    .apply(pd.to_numeric, errors='coerce')  # non-numeric -> NaN
+                    .astype('Int64')                        # nullable int dtype, keeps NaN
+                )
+                
+
+                # updtaing outlet specific playerIds to database IDs
+                if 'cbs_' in f:
+                    # dict name:pid
+                    lookup = self.playerLookupCbsName
+                    # updating the cbs source data full team name to the abbreviated db name
+                    temp['team'] = temp['team'].replace({"JAC":"JAX","WAS":"WSH" })
+                    temp.loc[temp['sourceId'].isna(), 'sourceId'] = temp.loc[temp['sourceId'].isna(), 'team'].map(lookup)
+
+                    # cbs source data does not have playerId for the defenses
+                    # dict cbsId:pid
+                    lookup = self.playerLookupCbs
+                    
+                elif 'espn_' in f:
+                    # dict name:pid
+                    lookup = self.playerLookupEspnName
+                    # updating the nfl source data full team name to the abbreviated db name
+                    temp.loc[temp['sourceId'].isnull(),'name'] = temp.loc[temp['sourceId'].isnull(),'name'].str.extract(r'^(\S+)')
+                    temp.loc[temp['sourceId'].isnull(),'name'] = temp.loc[temp['sourceId'].isnull(),'name'].str.strip()
+                    temp.loc[temp['sourceId'].isnull(), 'sourceId'] = temp.loc[temp['sourceId'].isnull(), 'name'].map(lookup)
+                    
+                    # dict espnId:pid
+                    lookup = self.playerLookupEspn
+                    
+                elif ('fp_' in f) or ('fpEcr_' in f):
+                    lookup = self.playerLookupFfp
+                    
+                elif 'nfl_' in f:
+                    # converting full team name to db table 'TEAM'.name
+                    # dict nflName:dbname
+                    lookup = self.playerLookupNflName
+
+                    # updating the nfl source data full team name to the abbreviated db name
+                    temp.loc[temp['name'].isna(), 'team'] = temp.loc[temp['name'].isna(), 'team'].map(lookup)
+
+                    # dict nflId:pid
+                    lookup = self.playerLookupNfl
+                    
+
+                # using the lookup to make the change from outletId to dbId
+                temp['playerId'] = temp['sourceId'].map(lookup)
+                temp['playerId'] = temp['playerId'].astype('Int64')
+                
+                temp = temp[temp['playerId'].notna()]
+
+                # creating a df to hold that date for players who are not in the player table for the source
+                if temp[pd.isnull(temp['playerId'])].shape[0] > 0:
+                    df_missing_players_adp = pd.concat(
+                        [
+                            df_missing_players_adp,
+                            temp.loc[
+                                pd.isnull(temp['playerId']), ['date', 'outlet', 'playerId', 'sourceId', 'name']
+                            ]
+                        ])
+                    
+
+                # finish processing and build data set
+                # updating outlet name to db outlet id 
+                temp['outletId'] = temp['outlet'].replace(self.outletLookup)
+                
+                temp = temp[[
+                    'outletId','date','playerId','adp','high','low'
+                ]]
+                
+                df_load_adp = pd.concat([df_load_adp, temp])
+            
+                
+                
+        except Exception as ex:
+            print(ex)
+            return 'failed'
+
+        if df_missing_players_adp.shape[0] > 0:
+            df_missing_players_adp = df_missing_players_adp.drop_duplicates(subset=['outlet', 'sourceId', 'name'], keep='first')
+            df_missing_players_adp.to_csv(str(hf.DATA_DIR) + '/missing players/missingPlayersAdp.csv')
+            print(df_missing_players_adp.shape[0], 'missing players..')
+            
+        else:
+            print('no missing players')
+
+        df_load_adp[["adp","high","low"]] = df_load_adp[["adp","high","low"]].apply(
+            pd.to_numeric, errors="coerce"
+        )
+        self.processed_dfs['adps'] = df_load_adp.copy()
+        return 
+
+        

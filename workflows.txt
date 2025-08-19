@@ -1,31 +1,43 @@
 WORKFLOWS
 
-----------------WEEKLY:
+==============================================
+----------------WEEKLY - INSEASON
+==============================================
 *** before first game of the week, preferably Wed.
-1) 
-OLD
-run through 'inseasonRankProj_dataretrieval.ipynb'
-******NEW
-run through 'getData_inseasonWeeklyRankProj.ipynb'
-
+	1) run through 'getData_RankProjectionAdp.ipynb'
+	- SET inseason = TRUE
+	- scrape
+	- process
+	- load
 
 *** after MNF game ends
-1) 
-OLD 
-run 'ktbEOW_dataretrieval.ipynb'
-******NEW
-run 'getData_ktbEOW.ipynb'
+	1) run 'getData_ktbEOW.ipynb'
 
-
------------------ONCE A SEASON:
+==============================================
+-----------------ONCE A SEASON
+==============================================
 *** AFTER SEASON ENDS
-1) run 'getData_SeasonHistory.ipynb' for league results and player stats, 
-       this can populate db: ktbplayers, ktbgames, ktbteams (prev. season)
+	1) run 'getData_SeasonHistory.ipynb' for league results and player stats, 
+       -this can populate db: ktbplayers, ktbgames, ktbteams (prev. season)
 
 *** AFTER DRAFT:
-1) run 'getData_DraftResults.ipynb'
-     this can populate db: ktbdrafts(current season) 
+	1) run 'getData_DraftResults.ipynb'
+     	-this can populate db: ktbdrafts(current season)
+	-if the scrape doesn't get the data then go to website and right click to save
+	the draft results to .html and load that instead of scraping.  
 	
+==============================================
+----------------OFFSEASON
+==============================================
+*** RUN whenever the data starts to get posted in the sites
+
+	1) run through 'getData_RankProjectionAdp.ipynb'
+	- SET inseason = FALSE, week = 0
+	- scrape
+	- process
+	- load
+
+
 
 
 
