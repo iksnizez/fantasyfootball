@@ -1,4 +1,4 @@
-import re, json
+import re, json, traceback
 import pandas as pd
 from nfl_data_py import import_ids
 from selenium import webdriver
@@ -265,7 +265,7 @@ def add_new_players_to_db(df_missing_players):
     # formatting imported data and prepping maps and list
     dfplayer['joinName']  = dfplayer['name'].str.lower().apply(apply_regex_replacements)
     map_joinName_to_dbPid = pd.Series(dfplayer.playerId.values, index=dfplayer.joinName).to_dict()
-    players_in_db = list(dfplayer['joinName'].str.lower().apply(apply_regex_replacements))
+    players_in_db = list(dfplayer['joinName'])#.str.lower().apply(apply_regex_replacements))
 
     map_source = {
         'espn':'espnId', 
@@ -307,21 +307,22 @@ def add_new_players_to_db(df_missing_players):
         )
         inserts = inserts.copy()
         # adding joinName back so that it can me used to add posId and teamId
-        inserts['joinName'] = inserts['name'].str.lower().apply(apply_regex_replacements)
+        #inserts['joinName'] = inserts['name'].str.lower().apply(apply_regex_replacements)
 
         # retrieve position ID and team ID for the players being added
         id_lookups = query_database(
             query = '''
                 SELECT 
-                    pid.name, pos.posId as posId, team as teamId
+                    pid.name as name, pos.posId as posId, team as teamId
                 FROM
                     playeridlookupimport pid
                 LEFT JOIN pos ON pos.pos = pid.position
             '''
         )
+
         id_lookups['teamId'] = id_lookups['teamId'].map(team_map_nfldatapy_to_dbTid)
         id_lookups['joinName'] = id_lookups['name'].str.lower().apply(apply_regex_replacements)
-        id_lookups.drop(['name'], axis=1, inplace=True)
+        id_lookups.drop('name', axis=1, inplace=True)
 
         # merge posId and teamId to inserts
         inserts = inserts.merge(id_lookups, on='joinName', how = 'left')
@@ -337,6 +338,7 @@ def add_new_players_to_db(df_missing_players):
 
         if inserts.shape[0] == 0: pass
         else:
+            inserts = inserts.rename(columns={'joinName':'name'})
             export_database(
                 dataframe = inserts,
                 database_table = 'player',
@@ -347,7 +349,9 @@ def add_new_players_to_db(df_missing_players):
 
     except Exception as ex:
         print(inserts.head())
-        print(ex)
+        print("Exception type:", type(ex).__name__)
+        print("Exception message:", ex)
+        traceback.print_exc()
 
     # ====================
     #       UPDATES
@@ -398,7 +402,9 @@ def add_new_players_to_db(df_missing_players):
     except Exception as ex:
         print('failed on', i, '...')
         print(updates.head())
-        print(ex)
+        print("Exception type:", type(ex).__name__)
+        print("Exception message:", ex)
+        traceback.print_exc()
     return
 
 

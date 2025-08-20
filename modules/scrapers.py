@@ -2497,6 +2497,7 @@ class scrapers():
 
         if df_missing_players_rank.shape[0] > 0:
             df_missing_players_rank = df_missing_players_rank.drop_duplicates(subset=['outlet', 'sourceId', 'name'], keep='first')
+            df_missing_players_rank = df_missing_players_rank[df_missing_players_rank['name'].notna()]
             df_missing_players_rank.to_csv(str(hf.DATA_DIR) + '/missing players/missingPlayersRank.csv')
             print(df_missing_players_rank.shape[0], 'missing players..')
             hf.add_new_players_to_db(df_missing_players_rank)
@@ -2609,6 +2610,7 @@ class scrapers():
             
         if df_missing_players_proj.shape[0] > 0:
             df_missing_players_proj = df_missing_players_proj.drop_duplicates(subset=['outlet', 'sourceId', 'name'], keep='first')
+            df_missing_players_proj = df_missing_players_proj[df_missing_players_proj['name'].notna()]
             df_missing_players_proj.to_csv(str(hf.DATA_DIR) + '/missing players/missingPlayersProj.csv')
             print(df_missing_players_proj.shape[0], 'missing players..')
             hf.add_new_players_to_db(df_missing_players_proj)
@@ -2742,6 +2744,7 @@ class scrapers():
 
         if df_missing_players_adp.shape[0] > 0:
             df_missing_players_adp = df_missing_players_adp.drop_duplicates(subset=['outlet', 'sourceId', 'name'], keep='first')
+            df_missing_players_adp = df_missing_players_adp[df_missing_players_adp['name'].notna()]
             df_missing_players_adp.to_csv(str(hf.DATA_DIR) + '/missing players/missingPlayersAdp.csv')
             print(df_missing_players_adp.shape[0], 'missing players..')
             
