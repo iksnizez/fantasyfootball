@@ -12,6 +12,10 @@ WORKFLOWS
 
 *** after MNF game ends
 	1) run 'getData_ktbEOW.ipynb'
+	- SET inseason = TRUE
+	- scrape
+	- process
+	- load
 
 ==============================================
 -----------------ONCE A SEASON

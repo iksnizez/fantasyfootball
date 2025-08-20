@@ -561,12 +561,12 @@ class ktb():
         self.df_players = players.copy()
         return   
 
-    #TODO
+    
     ### WEEKLY INSEASON
     def process_weekly_data_league(
         self,
         filepath_history_json = None,
-        database_table = None
+        database_table = 'ktbWeeklyTeams'
     ):
 
         teams = []
@@ -597,7 +597,10 @@ class ktb():
             crank = t['currentProjectedRank']
             drank = t['draftDayProjectedRank']
             id = t['id']
-            team = t['location'] + " " + t['nickname']
+            try:
+                team = t['name']
+            except:
+                team = t['location'] + ' ' + t['nickname']
             seed = t['playoffSeed']
             calrank = t['rankCalculatedFinal']
             finrank = t['rankFinal']
@@ -625,321 +628,97 @@ class ktb():
 
         teams = pd.DataFrame(teams, columns=teamcols).drop_duplicates(['season', 'week', 'id'])
 
+        if self.database_export:
+            hf.export_database(
+                dataframe = teams,
+                database_table=database_table,
+                connection_string=None,
+                if_exists='append'
+            )
+
         return
 
+    
+    # these are not doing anything 
     def process_weekly_data_boxscore(
         self,
         filepath_history_json = None,
-        database_table = None
+        database_table = 'ktbWeeklyScores'
     ):
-        boxscores = []
-
-        week = int(self.week)
-        matches = [-6+(6*week),-5+(6*week),-4+(6*week),-3+(6*week),-2+(6*week),-1+(6*week)]
 
         if filepath_history_json == None:
             boxscore_json = self.weekly_boxscore_json
+            season = season
         else:
+            
+            filename = filepath_history_json.split('/')[-1]
+            season = int(filename[:4])
             with open(filepath_history_json, 'r', encoding='utf-8') as f:
                 boxscore_json = json.load(f)
 
-
-        # build data dictionart to store teams weekly data
-        data = {1:{},2:{},3:{},4:{},5:{},6:{},7:{},8:{},9:{},10:{},11:{},12:{}}
-        # loop thru teams index
-        for i in range(1,13):
-            # loop thru week number 
-            for j in range(int(self.week),18): #start range set to week so that the previous weeks don't get erased on accident
-                data[i][j] = {
-                    'roster':{0:{}, 2:{}, 4:{},  6:{},  23:{},  15:{}, 17:{}, 20:{}, 21:{}},
-                    'pf':0, 'pa':0, 
-                    'ppf':0, 'ppa':0,  #proj points for and against
-                    'pfTotal':0, 'paTotal':0, 
-                    'ppfTotal':0, 'ppaTotal':0, 
-                    'wl':[0,0,0], #wins, losses, ties
-                    'prfScore':0, # the score for the perfect line up
-                    'prfLineup':0, #perfect line up, 1 = yes, 0 = no
-                    'pwrESPN':0, #espn rank
-                    'pwrCommish':0, #commish rank
-                    'wastedPts':0, #total points left on the bench, 
-                    'scoreRnk':0, #absolute rank of this weeks score 1-12
-                    'oppScoreRnk':0, # absolute rank of this weeks score 1-12
-                    'projPlusMinus':0, #total pts over or under total projection
-                    'oppProjPlusMinus':0, #opp. total pts over or under total projection
-                    'oppId':0 #opp id
-                }
-        
-        # loops through the matchups for the week. Matchups are labeled 0 - 83
+        week = boxscore_json['scoringPeriodId']
+        # espn increments matchups ids over the whole season
         #  week 1 = 0-5, week 2 = 6-11
-        week_scores = []
+        matches = [-6+(6*week),-5+(6*week),-4+(6*week),-3+(6*week),-2+(6*week),-1+(6*week)]
+
+        cols_boxscores = [
+            'season', 'week', 'teamId', 'oppId', 'pf', 'pa', 'w', 'l', 't'
+        ]
+        
+        data = []
+        # loops through the matchups for the week. Matchups are labeled 0 - 83
         for i in matches:
+
             #grab data starting point for easier reading later
             game = boxscore_json['schedule'][i]
             #grab team ids for the match up
             away_team = game['away']['teamId']
+            away_score = float(game['away']['totalPoints'])
+            print(away_score)
+            
             home_team = game['home']['teamId']
-            data[away_team][week]['oppId'] = home_team
-            data[home_team][week]['oppId'] = away_team
-            
-            #grab base scoring data for easier reading later
-            away_stats = game['away']['rosterForCurrentScoringPeriod']
-            home_stats = game['home']['rosterForCurrentScoringPeriod']
-            
-            #update points for and points against for each team
-            awayPts = away_stats['appliedStatTotal']
-            homePts = home_stats['appliedStatTotal']
-            data[away_team][week]['pf'] = awayPts
-            data[away_team][week]['pa'] = homePts
-            
-            #building list of scores to create league weekly ranks
-            week_scores.append(awayPts)
-            week_scores.append(homePts)
-            
-            ###data[away_team][week]['pfTotal'] += awayPts
-            ###data[away_team][week]['paTotal'] += homePts
-            data[home_team][week]['pa'] = awayPts
-            data[home_team][week]['pf'] = homePts
-            ###data[home_team][week]['paTotal'] += awayPts
-            ###data[home_team][week]['pfTotal'] += homePts
-            #update record
-            if awayPts > homePts:
-                data[away_team][week]['wl'][0] += 1
-                data[home_team][week]['wl'][1] += 1
-            elif awayPts < homePts:
-                data[away_team][week]['wl'][1] += 1
-                data[home_team][week]['wl'][0] += 1
+            home_score = float(game['home']['totalPoints'])
+
+
+            if home_score > away_score:
+                home_win, home_loss, home_tie = 1, 0, 0
+                away_win, away_loss, away_tie = 0, 1, 0
+            elif home_score < away_score:
+                home_win, home_loss, home_tie = 0, 1, 0
+                away_win, away_loss, away_tie = 1, 0, 0
             else:
-                data[away_team][week]['wl'][2] += 1
-                data[home_team][week]['wl'][2] += 1
-            
-            ###################################################
-            # looping through home and away data to populate weekly team data
-            ##################################################
-            ##### AWAY TEAM   
-            #populating the player act and proj scores
-            for p in away_stats['entries']:
-                #set vars for easier reading
-                slotId = p['lineupSlotId']
-                pId = p['playerId']
-                player = p['playerPoolEntry']['player']['fullName']
-                defaultSlot = p['playerPoolEntry']['player']['defaultPositionId']
-                #set base stat data for easier reading
-                stats = p['playerPoolEntry']['player']['stats']
-                data[away_team][week]['roster'][slotId][pId] = {}
-                data[away_team][week]['roster'][slotId][pId]['name'] = player
-                #updating all defensive players to have default slot == 15
-                if (defaultSlot >=10) and (defaultSlot <=16):
-                    data[away_team][week]['roster'][slotId][pId]['defaultSlot'] = 15
-                else:
-                    data[away_team][week]['roster'][slotId][pId]['defaultSlot'] = defaultSlot
-                #building the roster performance dictionary - scores, projects, starts, bench
-                for s in stats:
-                    #[statSourceId] == 0 is actual points scored
-                    if s['statSourceId'] == 0:
-                        act = s['appliedTotal']
-                        data[away_team][week]['roster'][slotId][pId]['act'] = act   
-                    else:
-                        proj = s['appliedTotal']
-                        data[away_team][week]['roster'][slotId][pId]['proj'] = proj
-                        if (slotId == 20) or (slotId == 21):
-                            pass
-                        else:
-                            data[away_team][week]['ppf'] += proj
+                home_win, home_loss, home_tie = 0, 0, 1
+                away_win, away_loss, away_tie = 0, 0, 1
 
-            ## HOME TEAM -same as the loop above but for the home team
-            for p in home_stats['entries']:
-                #set vars for easier reading
-                slotId = p['lineupSlotId']
-                pId = p['playerId']
-                player = p['playerPoolEntry']['player']['fullName']
-                defaultSlot = p['playerPoolEntry']['player']['defaultPositionId']
-                #set base stat data for easier reading
-                stats = p['playerPoolEntry']['player']['stats']
-                data[home_team][week]['roster'][slotId][pId] = {}
-                data[home_team][week]['roster'][slotId][pId]['name'] = player
-                if (defaultSlot >=10) and (defaultSlot <=16):
-                    data[home_team][week]['roster'][slotId][pId]['defaultSlot'] = 15
-                else:
-                    data[home_team][week]['roster'][slotId][pId]['defaultSlot'] = defaultSlot 
-                for s in stats:
-                    #[statSourceId] == 0 #actual
-                    if s['statSourceId'] == 0:
-                        act = s['appliedTotal']
-                        data[home_team][week]['roster'][slotId][pId]['act'] = act
-                    else:
-                        proj = s['appliedTotal']
-                        data[home_team][week]['roster'][slotId][pId]['proj'] = proj
-                        if (slotId == 20) or (slotId == 21):
-                            pass
-                        else:
-                            data[home_team][week]['ppf'] += proj    
             
-            ###################################
-            #exited the home/away loops but still in the game json loop for that week
-            ##################################
-            
-            #calculate PF vs Proj
-            data[home_team][week]['ppa'] = data[away_team][week]['ppf']
-            data[away_team][week]['ppa'] = data[home_team][week]['ppf']
-            data[home_team][week]['projPlusMinus'] = data[home_team][week]['pf'] - data[home_team][week]['ppf']
-            data[away_team][week]['projPlusMinus'] = data[away_team][week]['pf'] - data[away_team][week]['ppf']
-            data[home_team][week]['oppProjPlusMinus'] = data[away_team][week]['projPlusMinus']
-            data[away_team][week]['oppProjPlusMinus'] = data[home_team][week]['projPlusMinus']
-            
-            #########################
-            ### calculating perfect line up scores
-            #########################
-            
-            # creating a dictionary for the away team points by position id
-            away_points =  {0:[],2:[],4:[], 6:[], 15:[],17:[]}
-            for pos in [0, 2, 4, 6 ,15, 17, 20]:
-                for i, p in data[away_team][week]['roster'][pos].items():
-                    slot = p['defaultSlot']
-                    if slot == 1:
-                        away_points[0].append(p['act'])
-                    elif slot == 2:
-                        away_points[2].append(p['act'])
-                        #bisect.insort(points[2], p['act'])
-                    elif slot == 3:
-                        away_points[4].append(p['act'])
-                        #bisect.insort(points[4], p['act'])
-                    elif slot == 4:
-                        away_points[6].append(p['act'])
-                    # bisect.insort(points[6], p['act'])
-                    elif slot == 15:
-                        away_points[15].append(p['act'])
-                        #bisect.insort(points[15], p['act'])
-                    elif slot == 5:
-                        away_points[17].append(p['act'])
-                        #bisect.insort(points[17], p['act'])
-            # variable to hold the running point total for a perfect lineup
-            prfPoints = 0
-            # variable to hold the RB, WR, and TE points that did not get into the perfect starting lineup,
-            # the max point in this line up will be the starting flex player
-            flex =[]
-            for i, v in away_points.items():
-                scores = list(sorted(v, reverse=True))
-                if i == 0:
-                    prfPoints += scores[0]
-                elif i == 2:
-                    prfPoints += sum(scores[0:2])
-                    flex.append(scores[2:])
-                elif i == 4:
-                    prfPoints += sum(scores[0:2])
-                    flex.append(scores[2:])
-                elif i == 6:
-                    prfPoints += scores[0]
-                    flex.append(scores[1:])
-                elif i == 15:
-                    prfPoints += scores[0]
-                elif i == 17:
-                    prfPoints += scores[0]
-                
-            #flattens the list of list created from the flex list generation. the max value is added to the perfect lineup
-            prfPoints += sorted([item for sublist in flex for item in sublist], reverse=True)[0]
-            #calculates the wasted points
-            data[away_team][week]['wastedPts'] = prfPoints - data[away_team][week]['pf']
-            # marks a perfect lineup if there are no wasted points
-            if data[away_team][week]['wastedPts'] == 0:
-                data[away_team][week]['prfLineup'] == 1
-            #adds perfect lineup score to the team data for the week
-            data[away_team][week]['prfScore'] = prfPoints
 
-            # calculates the running totals for act and proj pf/pa
-            if week == 1:
-                data[away_team][week]['pfTotal'] = data[away_team][week]['pf']
-                data[away_team][week]['paTotal'] = data[away_team][week]['pa']
-                data[away_team][week]['ppfTotal'] = data[away_team][week]['ppf']
-                data[away_team][week]['ppaTotal'] = data[away_team][week]['ppa']
-            else:
-                data[away_team][week]['pfTotal'] += data[away_team][week-1]['pf']
-                data[away_team][week]['paTotal'] += data[away_team][week-1]['pa']
-                data[away_team][week]['ppfTotal'] += data[away_team][week-1]['ppf']
-                data[away_team][week]['ppaTotal'] += data[away_team][week-1]['ppa']
-            # saves the ESPN power ranking
-            data[away_team][week]['pwrESPN'] = league['teams'][away_team-1]['currentProjectedRank']   
-                            
-            ### calculating perfect line up scores
-            # creating a dictionary for the HOME team points by position id
-            home_points =  {0:[],2:[],4:[], 6:[], 15:[],17:[]}
-            for pos in [0, 2, 4, 6 ,15, 17, 20]:
-                for i, p in data[home_team][week]['roster'][pos].items():
-                    slot = p['defaultSlot']
-                    if slot == 1:
-                        home_points[0].append(p['act'])
-                    elif slot == 2:
-                        home_points[2].append(p['act'])
-                        #bisect.insort(points[2], p['act'])
-                    elif slot == 3:
-                        home_points[4].append(p['act'])
-                        #bisect.insort(points[4], p['act'])
-                    elif slot == 4:
-                        home_points[6].append(p['act'])
-                        # bisect.insort(points[6], p['act'])
-                    elif slot == 15:
-                        home_points[15].append(p['act'])
-                        #bisect.insort(points[15], p['act'])
-                    elif slot == 5:
-                        home_points[17].append(p['act'])
-                        #bisect.insort(points[17], p['act'])
-                
-            # variable to hold the running point total for a perfect lineup
-            prfPoints = 0
-            # variable to hold the RB, WR, and TE points that did not get into the perfect starting lineup,
-            # the max point in this line up will be the starting flex player
-            flex =[]
-            for i, v in home_points.items():
-                scores = list(sorted(v, reverse=True))
-                if i == 0:
-                    prfPoints += scores[0]
-                elif i == 2:
-                    prfPoints += sum(scores[0:2])
-                    flex.append(scores[2:])
-                elif i == 4:
-                    prfPoints += sum(scores[0:2])
-                    flex.append(scores[2:])
-                elif i == 6:
-                    prfPoints += scores[0]
-                    flex.append(scores[1:])
-                elif i == 15:
-                    prfPoints += scores[0]
-                elif i == 17:
-                    prfPoints += scores[0]
-                        
-            #flattens the list of list created from the flex list generation. the max value is added to the perfect lineup
-            prfPoints += sorted([item for sublist in flex for item in sublist], reverse=True)[0]
-            #calculates the wasted points
-            data[home_team][week]['wastedPts'] = prfPoints - data[home_team][week]['pf']
-            # marks a perfect lineup if there are no wasted points
-            if data[home_team][week]['wastedPts'] == 0:
-                data[home_team][week]['prfLineup'] == 1
-            #adds perfect lineup score to the team data for the week
-            data[home_team][week]['prfScore'] = prfPoints
-
-            # calculates the running totals for act and proj pf/pa
-            if week == 1:
-                data[home_team][week]['pfTotal'] = data[home_team][week]['pf']
-                data[home_team][week]['paTotal'] = data[home_team][week]['pa']
-                data[home_team][week]['ppfTotal'] = data[home_team][week]['ppf']
-                data[home_team][week]['ppaTotal'] = data[home_team][week]['ppa']
-            else:
-                data[home_team][week]['pfTotal'] += data[home_team][week-1]['pf']
-                data[home_team][week]['paTotal'] += data[home_team][week-1]['pa']
-                data[home_team][week]['ppfTotal'] += data[home_team][week-1]['ppf']
-                data[home_team][week]['ppaTotal'] += data[home_team][week-1]['ppa']
-            # saves the ESPN power ranking
-            data[home_team][week]['pwrESPN'] = league['teams'][home_team-1]['currentProjectedRank']
-            
-        week_scores = sorted(week_scores)
-        for team in data:
-            data[team][week]['scoreRnk'] = week_scores.index(data[team][week]["pf"]) + 1
-            data[team][week]['oppScoreRnk'] = week_scores.index(data[data[team][week]['oppId']][week]["pf"]) + 1
+            data.append([
+                season, week, home_team, away_team, home_score, away_score, home_win, home_loss, home_tie
+            ])
+            data.append([
+                season, week, away_team, home_team, away_score, home_score
+            ])
 
 
-        
+            # assign the dictionary with scoring by position dictionary
+            #away_scoring = ['schedule'][i]['away']['cumulativeScore']['scoreByStat']
+            #away_scoring = ['schedule'][i]['home']['cumulativeScore']['scoreByStat']
+
+        games = pd.DataFrame(
+            data, columns = cols_boxscores
+        )
+
+        if self.database_export:
+            hf.export_database(
+                dataframe = games,
+                database_table=database_table,
+                connection_string=None,
+                if_exists='append'
+            )
 
         return
 
+    
     def process_weekly_data_player(
         self,
         filepath_history_json = None,
