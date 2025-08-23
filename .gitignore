@@ -14,4 +14,7 @@ data/
 .Ruserdata
 espnAPInotes.txt
 scripts/scratch/
+*/scratch/
+scratch/
 .env
+*.pyc
