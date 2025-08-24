@@ -152,6 +152,9 @@ class scrapers():
             'lines':{
                 'bp':None
             },
+            'player_season_total_props':{
+                'bp':None
+            },
             'game_scores':{
                 'scores':None,
                 'records':None
@@ -162,9 +165,10 @@ class scrapers():
             'projections':None,
             'rankings':None,
             'adps':None,
-            'lines':None
+            'lines':None,
+            'seasonprops':None
         }
- 
+    
     # ====================
     #       cbs
     # ====================
@@ -2283,6 +2287,169 @@ class scrapers():
         self.scraped_dfs['lines']['bp'] = df_lines.copy()
         return df_lines.shape
 
+    def bp_season_player_total_props(
+        self,
+        url = 'https://api.bettingpros.com/v3/offers'
+    ):
+        # prop_name:[market id, number of entries at the time running. have to manually lookup on site]
+        # i can't figure out how to get a response > 5 players at a time so the total number is required
+        # to loop through pages
+        market_ids = {
+            'total_rushing_yds':[301, 57],
+            'total_rushing_tds':[305, 57],
+            'total_receiving_yds':[302, 105],
+            'total_receiving_tds':[306, 87],
+            'total_passing_yds':[300, 33],
+            'total_passing_tds':[304, 32]
+        }
+
+        scraped_json = {
+            'total_rushing_yds':[],
+            'total_rushing_tds':[],
+            'total_receiving_yds':[],
+            'total_receiving_tds':[],
+            'total_passing_yds':[],
+            'total_passing_tds':[]
+        }
+
+        book_id = None
+
+        params = {
+            'sport': 'NFL',
+            'market_id':None,    # 'marketId'
+            'season': self.season,    # 'YYYY'
+            'book_id': 'null',   
+            'limit': '5',
+            'page': '1'
+        }
+
+        headers = {
+            'Host': 'api.bettingpros.com',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:142.0) Gecko/20100101 Firefox/142.0',
+            'Accept': '*/*',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Accept-Encoding': 'gzip, deflate, br, zstd',
+            'Referer': 'https://www.bettingpros.com/',
+            'Origin': 'https://www.bettingpros.com',
+            'DNT': '1',
+            'Sec-GPC': '1',
+            'Connection': 'keep-alive',
+            'Sec-Fetch-Dest': 'empty',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Site': 'same-site',
+            'Priority': 'u=4',
+            'TE': 'trailers',
+            'x-api-key': 'CHi8Hy5CEE4khd46XNYL23dCFX96oUdw6qOt1Dnh'  # you’ll need to add this manually
+        }
+
+        # save json from api hits
+        # ===========================
+        for k,v in market_ids.items():
+            
+            # load market id for specific prop
+            params['market_id'] = str(v[0])
+
+            # have to loop through pages 5 players at a time
+            n_players = v[1]
+            n_pages = int(n_players / 5) + 1
+            for i in range(1, n_pages + 1):
+
+                params['page'] = i
+                
+                r = requests.get(
+                    url,
+                    headers=headers,
+                    params=params
+                )
+                print(k, i, r)
+                try:
+                    #soup = bs(r.text, features='lxml')
+                    scraped_json[k].append(r.json())
+                    print('made soup')
+                except:
+                    print('soup ruined')
+
+                time.sleep(3)
+            
+        # convert json to dataframes
+        # ===========================
+        player_rows = []
+        for prop in scraped_json:
+            # loop through scraped player pages - 5 players per page
+            for i in scraped_json[prop]:
+
+                for j in i['offers']:
+
+                    temp = j
+
+                    # all data for sinlge player
+                    # =========================
+                    individual_player_data = temp
+
+                    # meta data for player
+                    # =========================
+                    player_meta = individual_player_data['participants'][0]
+
+                    pid = player_meta['id']
+                    name = player_meta['name']
+                    pos = player_meta['player']['position']
+                    team = player_meta['player']['team']
+
+                    # line and odds data
+                    # =========================
+                    opening_line_data = individual_player_data['selections'][0]['opening_line']
+                    
+                    opening_line = opening_line_data['line']
+                    opening_odds = opening_line_data['cost']
+                    opening_bookid = opening_line_data['book_id']
+
+                    # book data 
+                    # =========================
+                    maps_bettingpros_books = {
+                        0:'consensus',
+                        13:'ceasars',
+                        10:'fanduel',
+                        37:'prizepicks',
+                        19:'betmgm',    
+                        33:'espnbet',
+                        27:'party casino',
+                        49:'hard rock'
+                    }
+                    for k in temp['selections'][0]['books']:
+
+                        book_id = k['id']
+                        if book_id != 0:
+                            continue
+                        else:
+                            line_data = k['lines'][0]
+                            
+                            current_odds = line_data['cost']
+                            current_line = line_data['line']
+                            isMain = line_data['main']
+                            isBest = line_data['best']
+
+                    #####################
+                    player_rows.append([
+                        prop, self.today, pid, name, pos, team, 
+                        opening_line, opening_odds, opening_bookid,
+                        current_odds, current_line
+                    ])
+            
+
+
+        headers = [
+            'prop', 'date',
+            'playerId', 'name', 'pos', 'team', 
+            'opening_line', 'opening_odds', 'opening_bookid', 
+            'current_odds', 'current_line'
+        ]
+        df = pd.DataFrame(
+            player_rows,
+            columns=headers
+        )
+        self.scraped_dfs['player_season_total_props']['bp'] = df.copy()
+        return
+
     # ========================
     #    processing scrapes
     # ========================
@@ -2325,7 +2492,7 @@ class scrapers():
 
         # create name table back up
         dbPlayers = hf.query_database(
-            query="SELECT * FROM player"
+            query="SELECT * FROM player WHERE name IS NOT NULL;"
         )
         # pandas might import some ids as floats, convert back to  ints
         id_cols = ['playerId', 'cbsId', 'espnId', 'fpId', 'nflId']
@@ -2348,6 +2515,10 @@ class scrapers():
 
         s = pd.Series(dbPlayers.playerId.values, index=dbPlayers.nflId)
         self.playerLookupNfl = s[s.index.notna()].to_dict()
+
+        dbPlayers['joinName'] = dbPlayers['name'].apply(hf.apply_regex_replacements)
+        s = pd.Series(dbPlayers.playerId.values, index=dbPlayers.joinName)
+        self.playerLookupDatabaseName = s[s.index.notna()].to_dict()
 
         #self.playerLookupNflName = pd.Series(dbPlayers.nflId.values, index=dbPlayers.name).dropna().to_dict() 
         nflTeam = hf.query_database(
@@ -2757,4 +2928,28 @@ class scrapers():
         self.processed_dfs['adps'] = df_load_adp.copy()
         return 
 
+    def process_season_player_total_props(self):
+
+        temp = self.scraped_dfs['player_season_total_props']['bp'].copy()
+        temp = temp.rename(columns={'playerId':'sourceId'})
+
+        # force imported playerId to 
+        temp['sourceId'] = (
+            temp['sourceId']
+            .apply(pd.to_numeric, errors='coerce')  # non-numeric -> NaN
+            .astype('Int64')                        # nullable int dtype, keeps NaN
+        )
+
+        temp['joinName'] = temp['name'].apply(hf.apply_regex_replacements)
         
+        # covnert to db playerId, db posId, db teamId,  
+        temp['joinName'] = temp['joinName'].replace({'Chig Okonkwo':'Chigoziem Okonkwo'})
+        temp['playerId'] = temp['joinName'].map(self.playerLookupDatabaseName)
+        temp['posId'] = temp['pos'].map(self.posLookup)
+
+        # additional team processing
+        temp['team'] = temp['team'].replace({'JAC':'JAX', 'LAR':'LA'})
+        temp['teamId'] = temp['team'].map(self.teamLookup)
+
+        self.processed_dfs['seasonprops'] = temp.copy()
+        return 
