@@ -1,4 +1,4 @@
-import re, json, traceback
+import re, json, traceback, requests
 import pandas as pd
 from nfl_data_py import import_ids
 from selenium import webdriver
@@ -158,12 +158,52 @@ def refresh_id_table():
     id_table = import_ids()
     export_database(
         dataframe = id_table, 
-        database_table = 'playeridlookupimport', 
+        database_table = 'player_nfldatapy', 
         connection_string=PYMYSQL_NFL, 
         if_exists='replace'
     )
 
     return
+
+def refresh_sleeper_player_id_table():
+
+    url_sleeper = r'https://api.sleeper.app/v1/players/nfl' 
+    r = requests.get(url_sleeper)
+
+    players = r.json()
+    players.keys()
+
+    # keys you want to keep
+    keep_keys = [
+        'full_name',  'search_full_name',  'first_name', 'last_name', 
+        'age', 'years_exp',  'height', 'weight',  'player_id',  
+        'team',   'position', 'depth_chart_position', 'depth_chart_order', 'active',  'status',  
+        'practice_participation', 'practice_description',
+        'injury_start_date',  'injury_status', 'injury_body_part', 'injury_notes',
+        'search_rank',  
+        'sportradar_id', 'gsis_id', 'espn_id', 'oddsjam_id', 'rotoworld_id',  'rotowire_id',
+        'fantasy_data_id',  'pandascore_id', 'swish_id',  'yahoo_id', 'opta_id', 'stats_id',
+        'hashtag'
+    ]
+    
+    #filtered = {k: players['5849'][k] for k in keep_keys if k in players['5849']}
+    filtered = [
+        {k: v for k, v in sub.items() if k in keep_keys}
+        for sub in players.values()
+    ]
+
+    # convert to dataframe
+    df = pd.DataFrame(filtered)
+    df = df[keep_keys]
+
+    export_database(
+        dataframe = df, 
+        database_table = 'player_sleeper', 
+        connection_string=PYMYSQL_NFL, 
+        if_exists='replace'
+    )
+
+    return 
 
 def export_database(dataframe, database_table, connection_string=None, if_exists='append'):
 
@@ -246,7 +286,7 @@ def apply_regex_replacements(value):
         value = re.sub(pattern, replacement, value, flags=re.IGNORECASE)
     return value
 
-def add_new_players_to_db(df_missing_players):
+def add_new_players_to_db(df_missing_players, refresh_ext_player_table = False):
 
     # missing players will be one of two ways 
     # A) not in my db at all - INSERTS
@@ -255,12 +295,13 @@ def add_new_players_to_db(df_missing_players):
     #refreshes the id lookup table from nfl-data-py
     #this will be used to populate player position and team id 
     #for players being added to my player database 
-    #refresh_id_table()
+    if refresh_ext_player_table:
+        refresh_id_table()
 
     # get the list of players from my database so i can check if the missing players are missing
     # from my database or just missing the outlet id
     dfplayer = query_database(
-        query="SELECT * FROM player"
+        query="SELECT * FROM player WHERE name IS NOT NULL;"
     )
     # formatting imported data and prepping maps and list
     dfplayer['joinName']  = dfplayer['name'].str.lower().apply(apply_regex_replacements)
@@ -315,7 +356,7 @@ def add_new_players_to_db(df_missing_players):
                 SELECT 
                     pid.name as name, pos.posId as posId, team as teamId
                 FROM
-                    playeridlookupimport pid
+                    player_nfldatapy pid
                 LEFT JOIN pos ON pos.pos = pid.position
             '''
         )

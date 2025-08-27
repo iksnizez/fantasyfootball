@@ -2671,7 +2671,7 @@ class scrapers():
             df_missing_players_rank = df_missing_players_rank[df_missing_players_rank['name'].notna()]
             df_missing_players_rank.to_csv(str(hf.DATA_DIR) + '/missing players/missingPlayersRank.csv')
             print(df_missing_players_rank.shape[0], 'missing players..')
-            hf.add_new_players_to_db(df_missing_players_rank)
+            hf.add_new_players_to_db(df_missing_players_rank, refresh_ext_player_table = False)
         else:
             print('no missing players')
         
@@ -2784,7 +2784,7 @@ class scrapers():
             df_missing_players_proj = df_missing_players_proj[df_missing_players_proj['name'].notna()]
             df_missing_players_proj.to_csv(str(hf.DATA_DIR) + '/missing players/missingPlayersProj.csv')
             print(df_missing_players_proj.shape[0], 'missing players..')
-            hf.add_new_players_to_db(df_missing_players_proj)
+            hf.add_new_players_to_db(df_missing_players_proj, refresh_ext_player_table = False)
         else:
             print('no missing players')
 
