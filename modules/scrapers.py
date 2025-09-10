@@ -81,13 +81,13 @@ class scrapers():
                 'inseason':{
                     'projections':"https://fantasy.espn.com/football/players/projections?leagueFormatId=3",
                     'rankings':{
-                        "QB":"",
-                        "RB":"",
-                        "WR":"",
-                        "TE":"",
-                        "K":"",
-                        "DST":"",
-                        "IDP":""
+                        "QB":"https://www.espn.com/fantasy/football/story/_/page/FFWeeklyPlayerRank25-46104453/nfl-fantasy-football-rankings-2025-qb-quarterback",
+                        "RB":"https://www.espn.com/fantasy/football/story/_/page/FFWeeklyPlayerRank25-46104478/nfl-fantasy-football-rankings-2025-rb-running-back",
+                        "WR":"https://www.espn.com/fantasy/football/story/_/page/FFWeeklyPlayerRank25-46104515/nfl-fantasy-football-rankings-2025-wr-wide-receiver",
+                        "TE":"https://www.espn.com/fantasy/football/story/_/page/FFWeeklyPlayerRank25-46104554/nfl-fantasy-football-rankings-2025-te-tight-end",
+                        "K":"https://www.espn.com/fantasy/football/story/_/page/FFWeeklyPlayerRank25-46104569/nfl-fantasy-football-rankings-2025-k-kicker",
+                        "DST":"https://www.espn.com/fantasy/football/story/_/page/FFWeeklyPlayerRank25-46104572/nfl-fantasy-football-rankings-2025-dst-defense",
+                        "IDP":"https://www.espn.com/fantasy/football/story/_/page/FFWeeklyPlayerRank25-46104581/nfl-fantasy-football-rankings-2025-idp"
                     }
                 }
             },

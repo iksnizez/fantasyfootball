@@ -130,18 +130,18 @@ class ktb():
             nTeams = 12,
             database_table = 'ktbdrafts',
             map_team_id = {
-                'free breece':12, 
-                'Team Gomer':2, 
-                'Big Baby Nate':9,
-                'Poopstained Warriors':4, 
-                'Purdy Chubby':6, 
-                'Jamo no Chaser':1,
-                'CeeDeez Nutz':10, 
-                'JB got last in 23':5, 
-                'Touchdown My Pants':8,
+                'Legette another baby':1,
+                'Team Gomer':2,
+                'DPD DannyDimes':3,
+                'Poopstained Warriors':4,
+                'JB got last in 23':5,
+                'B Team':6,
                 'Team Chaunce':7, 
-                'The Suavin Scoregasms':11, 
-                'DPD DannyDimes':3
+                'Touchdown My Pants':8,
+                'Big Baby Nate':9,
+                'CeeDeez Nutz':10,
+                'The Suavin Scoregasms':11,
+                'free breece':12   
             }
         ):
         """
@@ -265,13 +265,13 @@ class ktb():
         boxscore_json = json.loads(response.content)
         
         if self.store_locally:
-            with open(hf.DATA_DIR / '\\Season\\player\\{}week{}_player.txt'.format(self.season, self.week), 'w') as outfile:
+            with open(str(hf.DATA_DIR) + '\\Season\\player\\{}week{}_player.txt'.format(self.season, self.week), 'w') as outfile:
                 json.dump(player_json, outfile)
 
-            with open(hf.DATA_DIR / '\\Season\\league\\{}week{}_league.txt'.format(self.season, self.week), 'w') as outfile:
+            with open(str(hf.DATA_DIR) +  '\\Season\\league\\{}week{}_league.txt'.format(self.season, self.week), 'w') as outfile:
                 json.dump(league_json, outfile)
 
-            with open(hf.DATA_DIR / '\\Season\\boxscore\\{}week{}_boxscore.txt'.format(self.season, self.week), 'w') as outfile:
+            with open(str(hf.DATA_DIR) + '\\Season\\boxscore\\{}week{}_boxscore.txt'.format(self.season, self.week), 'w') as outfile:
                 json.dump(boxscore_json, outfile)
 
         self.weekly_player_json = player_json
@@ -638,7 +638,132 @@ class ktb():
 
         return
 
-    
+    def process_weekly_boxscores(
+        self,
+        filepath_history_json = None,
+        database_table = 'ktbgames'
+    ):
+        ## mBoxscore - has weekly matchup scores at the team level when looking at league history
+        # it has player scores too if looking in season during a week.
+                
+        # teams are dictionaries in a single list
+        if filepath_history_json == None:
+            gameResults = self.weekly_boxscore_json['schedule']
+        else:
+            with open(filepath_history_json, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                gameResults = data['schedule']
+
+        allGames = []
+        playoffStarts = {}
+
+        week = self.week
+        # espn increments matchups ids over the whole season
+        #  week 1 = 0-5, week 2 = 6-11
+        matches = [-6+(6*week),-5+(6*week),-4+(6*week),-3+(6*week),-2+(6*week),-1+(6*week)]
+
+
+        for i in matches:
+            g = gameResults[i]
+            
+            # handles playoff bye weeks
+            if 'away' not in g:
+                home = g['home']
+                
+                firstPlayoffWeek = g['matchupPeriodId']
+                #checks if the season is already in the dict and skips re assigning if it is
+                if self.season in playoffStarts:
+                    pass
+                else:
+                    playoffStarts[int(self.season)] = firstPlayoffWeek
+                
+                week = g['matchupPeriodId']
+                gameId = g['id']
+                bye = 1
+                teamOneId = None
+                teamOneTiebreak = None
+                teamOnePf = None
+                
+                teamTwoId = home['teamId']
+                teamTwoTiebreak = home['tiebreak']
+                teamTwoPf = home['totalPoints']
+                
+                winner = 0
+                loser = 0
+                tieTeamOne = 0  
+                tieTeamTwo = 0
+                
+            # flatten game results for non-bye matchups
+            else:
+                week = g['matchupPeriodId']
+                gameId = g['id']
+                bye = 0
+                
+                away = g['away']
+                home = g['home']
+            
+                teamOneId = away['teamId']
+                teamOneTiebreak = away['tiebreak']
+                teamOnePf = away['totalPoints']
+
+                teamTwoId = home['teamId']
+                teamTwoTiebreak = home['tiebreak']
+                teamTwoPf = home['totalPoints']
+            
+                # label winner and loser
+                if (teamOnePf + teamOneTiebreak) > (teamTwoPf + teamTwoTiebreak):
+                    winner = teamOneId
+                    loser = teamTwoId
+                    tieTeamOne = 0  
+                    tieTeamTwo = 0
+                elif (teamOnePf + teamOneTiebreak) < (teamTwoPf + teamTwoTiebreak):
+                    winner = teamTwoId
+                    loser = teamOneId
+                    tieTeamOne = 0
+                    tieTeamTwo = 0
+                else:
+                    winner = 0
+                    loser = 0
+                    tieTeamOne = teamOneId
+                    tieTeamTwo = teamTwoId
+            
+            gameResult = [int(self.season), week, gameId, teamOneId, teamOnePf, teamOneTiebreak, teamTwoId,
+                        teamTwoPf, teamTwoTiebreak, winner, loser, tieTeamOne, tieTeamTwo,
+                        bye#, playoff
+                        ]
+            allGames.append(gameResult)
+                
+        cols = ['season', 'week', 'gameId', 'teamOneId', 'teamOnePf', 'teamOneTiebreak',
+                'teamTwoId','teamTwoPf', 'teamTwoTiebreak', 'winner', 'loser', 'tieTeamOne', 
+                'tieTeamTwo',  'bye'
+            ]
+
+        games = pd.DataFrame(allGames, columns = cols)
+
+        #will add values to this in the loop below
+        games['playoffs'] = 0
+
+        # adding playoff flag
+        for k, v in playoffStarts.items():
+            
+            # regular season games
+            mask = ((games['season'] == k) & (games['week'] < v))
+            games.loc[mask, 'playoffs'] = 0
+            # play off games
+            mask = ((games['season'] == k) & (games['week'] >= v))
+            games.loc[mask, 'playoffs'] = 1 
+
+        if self.database_export:
+            hf.export_database(
+                dataframe = games, 
+                database_table = database_table, 
+                connection_string = self.pymysql_conn_str
+            )
+
+        self.df_games = games.copy()
+        return
+
+
     # these are not doing anything 
     def process_weekly_data_boxscore(
         self,

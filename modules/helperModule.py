@@ -1,6 +1,6 @@
 import re, json, traceback, requests
 import pandas as pd
-from nfl_data_py import import_ids
+from nfl_data_py import import_ids, import_depth_charts
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from sqlalchemy import create_engine, text
@@ -448,6 +448,27 @@ def add_new_players_to_db(df_missing_players, refresh_ext_player_table = False):
         traceback.print_exc()
     return
 
+def get_depth_charts(year):
 
+    # import and filter latest date
+    years = [year]
+    rosters = import_depth_charts(years=years)
+    latest_dt = rosters['dt'].max()
+    rosters = rosters[rosters['dt'] == latest_dt]
 
+    # filter positions
+    positions = ['QB', 'RB', 'WR', 'TE']
+    cols = ['team', 'player_name', 'pos_abb', 'pos_rank']
+    o = rosters[rosters['pos_abb'].isin(positions)][cols].copy()
+
+    # create 'depth' column
+    o['depth'] = o['pos_abb'] + o['pos_rank'].astype(str)
+
+    # pivot so that teams are rows, depth labels are columns, values are player names
+    o = o.pivot(index='team', columns='depth', values='player_name').reset_index()
+
+    # optional: sort columns (keep 'team' first, then depth columns alphabetically)
+    cols_sorted = ['team'] + sorted([c for c in o.columns if c != 'depth'])
+    o = o[cols_sorted]
+    return o
 
